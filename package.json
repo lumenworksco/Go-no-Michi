@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -10,7 +11,7 @@
     "test": "vitest run",
     "e2e": "npm run build && playwright test",
     "e2e:live": "playwright test --project=desktop-chromium --project=mobile-webkit",
-    "arena": "SZ=9 A=chukyu B=nyumon N=6 tsx scripts/arena.ts"
+    "arena": "tsx scripts/arena.ts"
   },
   "dependencies": {
     "react": "^19.3.0",

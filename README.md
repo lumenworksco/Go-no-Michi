@@ -67,4 +67,4 @@ engine like KataGo; expect it to play more weakly, and more slowly, on 19×19.
 
 ## License
 
-Not yet decided — no license file is included, so all rights are reserved by default.
+[MIT](LICENSE)
