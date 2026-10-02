@@ -22,24 +22,53 @@ export function App() {
   const [saved, setSaved] = useState<SavedGame | null>(() => loadSavedGame());
   const [solved, setSolved] = useState<number[]>(() => load<number[]>('gonomichi:tsumego', []));
 
+  // 起動（読みこみなおし含む）のたびに、戻る履歴の起点をホームにそろえる。
+  // このアプリは常にホームから始まるので、前回の深い画面が履歴に残っていても無視する。
+  useEffect(() => {
+    try {
+      history.replaceState({ name: 'home' } as Route, '');
+    } catch {
+      /* 履歴が使えなくても画面遷移は行う */
+    }
+  }, []);
+
   // ホームに戻るたびに、保存されている対局を読み直す（戻るボタン経由でも古い情報を出さない）
   useEffect(() => {
     if (route.name === 'home') setSaved(loadSavedGame());
   }, [route.name]);
 
-  // ブラウザ／端末の「戻る」で一つ前の画面に戻れるようにする
+  // 端末／ブラウザの「戻る」を唯一の遷移元にする。履歴に積んだ内容をそのまま読み戻す。
   useEffect(() => {
-    const onPop = () => setRoute({ name: 'home' });
+    const onPop = (e: PopStateEvent) => setRoute((e.state as Route | null) ?? { name: 'home' });
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+
+  /** 新しい画面へ進む。戻る履歴にも積むので、端末の「戻る」でここへ戻ってこられる。 */
   const go = (r: Route) => {
     try {
-      history.pushState({}, '');
+      history.pushState(r, '');
     } catch {
-      /* 履歴が使えなくても画面遷移は行う */
+      /* ignore */
     }
     setRoute(r);
+  };
+  /** 今の画面を置きかえる（次の詰碁へ、もう一局、など）。戻る履歴は増やさない。 */
+  const replace = (r: Route) => {
+    try {
+      history.replaceState(r, '');
+    } catch {
+      /* ignore */
+    }
+    setRoute(r);
+  };
+  /** 一つ前の画面に戻る。履歴を操作することで、端末の「戻る」ボタンと挙動がそろう。 */
+  const back = () => {
+    try {
+      history.back();
+    } catch {
+      setRoute({ name: 'home' });
+    }
   };
 
   const markSolved = (id: number) =>
@@ -67,15 +96,18 @@ export function App() {
         />
       );
     case 'rules':
-      return <Rules onBack={() => setRoute({ name: 'home' })} />;
+      return <Rules onBack={back} />;
     case 'setup':
       return (
         <Setup
-          onBack={() => setRoute({ name: 'home' })}
+          hasSaved={!!saved}
+          onBack={back}
           onStart={(settings) => {
             clearSavedGame(); // 新しい対局を始めたら、中断していた対局は破棄
             setSaved(null);
-            go({ name: 'game', settings, run: 0, resume: null });
+            // 対局設定の画面は使い捨てなので、戻る履歴には積まず置きかえる。
+            // こうすると対局を終えたときの「戻る」は、設定画面を飛ばして直接ホームに戻る。
+            replace({ name: 'game', settings, run: 0, resume: null });
           }}
         />
       );
@@ -85,15 +117,12 @@ export function App() {
           key={route.run}
           settings={route.settings}
           resume={route.resume}
-          onExit={() => {
-            setSaved(loadSavedGame());
-            setRoute({ name: 'home' });
-          }}
-          onRematch={() => setRoute({ ...route, run: route.run + 1, resume: null })}
+          onExit={back}
+          onRematch={() => replace({ ...route, run: route.run + 1, resume: null })}
         />
       );
     case 'tsumegoList':
-      return <TsumegoList solved={solved} onPick={(puzzle) => go({ name: 'tsumego', puzzle })} onBack={() => setRoute({ name: 'home' })} />;
+      return <TsumegoList solved={solved} onPick={(puzzle) => go({ name: 'tsumego', puzzle })} onBack={back} />;
     case 'tsumego': {
       const i = PUZZLES.findIndex((p) => p.id === route.puzzle.id);
       const next = PUZZLES[i + 1];
@@ -102,8 +131,8 @@ export function App() {
           key={route.puzzle.id}
           puzzle={route.puzzle}
           onSolved={markSolved}
-          onBack={() => setRoute({ name: 'tsumegoList' })}
-          onNext={() => next && setRoute({ name: 'tsumego', puzzle: next })}
+          onBack={back}
+          onNext={() => next && replace({ name: 'tsumego', puzzle: next })}
           hasNext={!!next}
         />
       );

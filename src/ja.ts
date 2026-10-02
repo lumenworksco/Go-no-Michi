@@ -46,6 +46,9 @@ export const ja = {
     komiValue: (k: number) => (k === 0 ? 'なし' : k % 1 ? `${Math.floor(k)}もくはん` : `${k}もく`),
     start: 'はじめる',
     back: 'もどる',
+    discardAsk: 'ちゅうだんした たいきょくを すてますか？',
+    discardBody: 'あたらしい たいきょくを はじめると、ちゅうだんしていた たいきょくは きえます。',
+    discardYes: 'すてて はじめる',
   },
 
   game: {
@@ -169,7 +172,15 @@ export const ja = {
     whitePassed: 'しろは パスしました',
     showing: 'せいかいの てじゅん',
     tap: 'くろの いってを うってください',
+    alreadyThere: 'そこには もう いしが あります',
     progress: (done: number, total: number) => `${done} / ${total} もん せいかい`,
+  },
+
+  errorScreen: {
+    title: 'もんだいが おきました',
+    body: 'すみません。がめんを よみこみなおすと、なおる ことが あります。',
+    reload: 'よみこみなおす',
+    clearAndReload: 'たいきょくの ほぞんを けして よみこみなおす',
   },
 
   aria: {

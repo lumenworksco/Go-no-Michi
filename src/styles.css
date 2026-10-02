@@ -778,9 +778,11 @@ p {
   font-size: 14px;
 }
 
+/* 画面の上側はタイトルや、2行に折り返すこともある「もんだい文」があるので、
+   トーストは下側（操作ボタンのすぐ上）に出す。どの画面でも他の文字と重ならない。 */
 .toast {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 64px);
+  bottom: calc(env(safe-area-inset-bottom) + 88px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 30;
@@ -797,7 +799,7 @@ p {
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -8px);
+    transform: translate(-50%, 8px);
   }
 }
 
@@ -1164,4 +1166,30 @@ p {
     gap: 16px;
     align-items: start;
   }
+}
+
+/* ---------- エラー画面 ---------- */
+.error-screen {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.error-box {
+  max-width: 420px;
+}
+.error-box h1 {
+  font-family: var(--serif);
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+.error-box p {
+  color: var(--muted);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+.error-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }

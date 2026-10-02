@@ -1,36 +1,65 @@
 // AI は Web Worker で動かし、画面を止めない。キャンセル時はワーカーごと作り直す。
 // 対局用とヒント用でワーカーを分け、ヒントの計算が相手の着手を待たせないようにする。
+// ワーカーが作れない・途中で壊れた場合は、メインスレッドで直接計算して必ず応答を返す
+// （画面を止めてしまうが、「かんがえちゅう」のまま固まるよりはよい）。
 import type { Color } from '../engine/board';
-import type { AiRequest } from './mcts';
+import { chooseMove, estimateDead, type AiRequest } from './mcts';
 import type { WorkerIn, WorkerOut } from './worker';
 
 type Msg = WorkerIn extends infer T ? (T extends { id: number } ? Omit<T, 'id'> : never) : never;
 
 let nextId = 1;
 
+function fallback(msg: Msg): WorkerOut {
+  if (msg.type === 'move') {
+    const r = chooseMove(msg.req);
+    return { id: 0, type: 'move', move: r.move, winrate: r.winrate };
+  }
+  return { id: 0, type: 'dead', dead: estimateDead(msg.board, msg.size, msg.toPlay) };
+}
+
 class Channel {
   private worker: Worker | null = null;
-  private pending = new Map<number, (out: WorkerOut) => void>();
+  private pending = new Map<number, { resolve: (out: WorkerOut) => void; msg: Msg }>();
+  private broken = false;
 
-  private get(): Worker {
+  private get(): Worker | null {
+    if (this.broken) return null;
     if (!this.worker) {
-      this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+      try {
+        this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+      } catch {
+        this.broken = true;
+        return null;
+      }
       this.worker.onmessage = (e: MessageEvent<WorkerOut>) => {
-        const cb = this.pending.get(e.data.id);
-        if (cb) {
+        const p = this.pending.get(e.data.id);
+        if (p) {
           this.pending.delete(e.data.id);
-          cb(e.data);
+          p.resolve(e.data);
         }
+      };
+      this.worker.onerror = () => {
+        // ワーカーが壊れた：待っている分はメインスレッドで代わりに計算して返し、
+        // 以降このチャンネルはワーカーを使わず直接計算する。
+        this.broken = true;
+        this.worker?.terminate();
+        this.worker = null;
+        const waiting = [...this.pending.values()];
+        this.pending.clear();
+        for (const { resolve, msg } of waiting) resolve(fallback(msg));
       };
     }
     return this.worker;
   }
 
   send(msg: Msg): Promise<WorkerOut> {
+    const w = this.get();
+    if (!w) return Promise.resolve(fallback(msg));
     return new Promise((resolve) => {
       const id = nextId++;
-      this.pending.set(id, resolve);
-      this.get().postMessage({ ...msg, id } as WorkerIn);
+      this.pending.set(id, { resolve, msg });
+      w.postMessage({ ...msg, id } as WorkerIn);
     });
   }
 

@@ -101,7 +101,9 @@ export function TsumegoPlay({
     setHint(-1);
     const r = playMove(cur, idx);
     if (!r.ok) {
-      toast.show(r.reason === 'ko' ? ja.game.ko : r.reason === 'suicide' ? ja.game.suicide : ja.tsumego.tap);
+      toast.show(
+        r.reason === 'ko' ? ja.game.ko : r.reason === 'suicide' ? ja.game.suicide : r.reason === 'occupied' ? ja.tsumego.alreadyThere : ja.tsumego.tap,
+      );
       return;
     }
     const nl = left - 1;

@@ -8,6 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "e2e": "npm run build && playwright test",
+    "e2e:live": "playwright test --project=desktop-chromium --project=mobile-webkit",
     "arena": "SZ=9 A=chukyu B=nyumon N=6 tsx scripts/arena.ts"
   },
   "dependencies": {
@@ -15,6 +17,7 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

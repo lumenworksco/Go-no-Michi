@@ -16,7 +16,6 @@ export default defineConfig({
         description: 'しずかに うつ、いご。コンピュータと たいせん、ふたりで たいせん、つめご。',
         lang: 'ja',
         display: 'standalone',
-        orientation: 'portrait',
         background_color: '#0b0c0e',
         theme_color: '#0b0c0e',
         icons: [
@@ -25,9 +24,14 @@ export default defineConfig({
           { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'] },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        // SNS カード用の画像はアプリ自体では使わないので、オフラインキャッシュに含めない。
+        globIgnores: ['**/og-image.png'],
+      },
     }),
   ],
   worker: { format: 'es' },
-  test: { environment: 'node' },
+  // e2e/ は Playwright（npm run e2e）が使う。vitest（npm test）はユニットテストだけを見る。
+  test: { environment: 'node', exclude: ['node_modules/**', 'dist/**', 'e2e/**'] },
 });

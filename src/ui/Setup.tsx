@@ -4,7 +4,7 @@ import { maxHandicap } from '../engine/game';
 import type { Level } from '../ai/mcts';
 import { ja } from '../ja';
 import { load, save } from '../store';
-import { BackButton, TopBar } from './common';
+import { BackButton, Sheet, TopBar } from './common';
 
 export interface GameSettings {
   size: 9 | 13 | 19;
@@ -41,8 +41,18 @@ function Seg<T extends string | number>({
   );
 }
 
-export function Setup({ onStart, onBack }: { onStart: (s: GameSettings) => void; onBack: () => void }) {
+export function Setup({
+  onStart,
+  onBack,
+  hasSaved = false,
+}: {
+  onStart: (s: GameSettings) => void;
+  onBack: () => void;
+  /** 中断した対局が残っているか。あれば、はじめる前に破棄してよいか確認する。 */
+  hasSaved?: boolean;
+}) {
   const [s, setS] = useState<GameSettings>(() => ({ ...DEFAULT_SETTINGS, ...load<Partial<GameSettings>>('gonomichi:settings', {}) }));
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const set = <K extends keyof GameSettings>(k: K, v: GameSettings[K]) => setS((p) => ({ ...p, [k]: v }));
   const t = ja.setup;
   const maxH = maxHandicap(s.size);
@@ -129,14 +139,34 @@ export function Setup({ onStart, onBack }: { onStart: (s: GameSettings) => void;
         <button
           className="big-btn primary slim"
           onClick={() => {
-            const final = { ...s, handicap, komi };
-            save('gonomichi:settings', final);
-            onStart(final);
+            if (hasSaved) setConfirmDiscard(true);
+            else doStart();
           }}
         >
           <span className="bb-title">{t.start}</span>
         </button>
       </div>
+
+      {confirmDiscard && (
+        <Sheet onClose={() => setConfirmDiscard(false)}>
+          <h2>{t.discardAsk}</h2>
+          <p>{t.discardBody}</p>
+          <div className="sheet-actions">
+            <button className="act" onClick={() => setConfirmDiscard(false)}>
+              {ja.game.cancel}
+            </button>
+            <button className="act primary" onClick={doStart}>
+              {t.discardYes}
+            </button>
+          </div>
+        </Sheet>
+      )}
     </div>
   );
+
+  function doStart() {
+    const final = { ...s, handicap, komi };
+    save('gonomichi:settings', final);
+    onStart(final);
+  }
 }
