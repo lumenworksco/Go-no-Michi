@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { BLACK, type Color } from '../engine/board';
 import { ja } from '../ja';
 import { isSoundOn, setSound } from '../audio';
@@ -98,20 +98,57 @@ export function useToast() {
   return { show, node };
 }
 
+const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * 下から出る（デスクトップでは中央の）ダイアログ。
+ * - Esc で閉じる
+ * - 開いたらダイアログ自体にフォーカスを移し、Tab はダイアログの中だけを回る
+ * - 閉じたら、開く前にフォーカスしていたものに戻す
+ * - 見出し（h2）を、ダイアログの名前として読み上げ用に結びつける
+ */
 export function Sheet({ children, onClose }: { children: ReactNode; onClose?: () => void }) {
-  // Esc で閉じる。常に最新の onClose を呼ぶ。
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const dialog = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
   useEffect(() => {
+    const el = dialog.current;
+    const before = document.activeElement as HTMLElement | null;
+    const heading = el?.querySelector('h2');
+    if (heading) heading.id = titleId;
+    el?.focus({ preventScroll: true });
+
     const f = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeRef.current?.();
+      if (e.key === 'Escape') {
+        closeRef.current?.();
+        return;
+      }
+      if (e.key !== 'Tab' || !el) return;
+      const items = [...el.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((n) => n.offsetParent !== null || n === document.activeElement);
+      if (items.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      // ブラウザまかせにせず、いつも自分で次の場所を決める（ブラウザによって、ダイアログ自体から
+      // Tab を押したときの行き先がちがうため）
+      const at = items.indexOf(document.activeElement as HTMLElement);
+      const next = e.shiftKey ? (at <= 0 ? items.length - 1 : at - 1) : at === -1 || at === items.length - 1 ? 0 : at + 1;
+      e.preventDefault();
+      items[next].focus();
     };
     window.addEventListener('keydown', f);
-    return () => window.removeEventListener('keydown', f);
-  }, []);
+    return () => {
+      window.removeEventListener('keydown', f);
+      // 開く前の場所に戻す（その要素がもう無いときは何もしない）
+      if (before && before.isConnected) before.focus({ preventScroll: true });
+    };
+  }, [titleId]);
+
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div className="sheet" ref={dialog} tabIndex={-1} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         {children}
       </div>
     </div>
@@ -125,5 +162,29 @@ export function Dots() {
       <i />
       <i />
     </span>
+  );
+}
+
+/** 選択肢のならび（どれか一つを選ぶ）。 */
+export function Seg<T extends string | number>({
+  value,
+  options,
+  onChange,
+  cols,
+}: {
+  value: T;
+  options: { value: T; label: string; sub?: string }[];
+  onChange: (v: T) => void;
+  cols?: number;
+}) {
+  return (
+    <div className="seg" style={cols ? { gridTemplateColumns: `repeat(${cols}, 1fr)` } : undefined}>
+      {options.map((o) => (
+        <button key={String(o.value)} className={o.value === value ? 'on' : ''} onClick={() => onChange(o.value)} aria-pressed={o.value === value}>
+          <span>{o.label}</span>
+          {o.sub && <small>{o.sub}</small>}
+        </button>
+      ))}
+    </div>
   );
 }

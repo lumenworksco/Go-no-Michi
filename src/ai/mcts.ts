@@ -53,6 +53,8 @@ export interface AiRequest {
   last: number;
   /** 直前に相手がパスしたか */
   opponentPassed: boolean;
+  /** コウ（同形反復）で打てない点。単純なコウ以外の理由で打てない点を、盤面だけからは AI が知れないため */
+  banned?: number[];
   level: Level;
 }
 
@@ -364,10 +366,12 @@ export function chooseMove(req: AiRequest, rng: Rng = Math.random): AiResult {
 
   if (!req.opponentPassed) {
     const om = openingMove(req, rng);
-    if (om >= 0) return { move: om, winrate: 0.5 };
+    if (om >= 0 && !req.banned?.includes(om)) return { move: om, winrate: 0.5 };
   }
 
-  const rootCands = candidateMoves(req.board, size, toPlay, req.ko, req.last, rng);
+  const banned = req.banned?.length ? new Set(req.banned) : null;
+  let rootCands = candidateMoves(req.board, size, toPlay, req.ko, req.last, rng);
+  if (banned) rootCands = rootCands.filter(([p]) => !banned.has(p));
   const playout = new Playout(size, rng);
   const scratch = new Uint8Array(req.board.length);
   const work = new Uint8Array(req.board.length);

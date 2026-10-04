@@ -20,15 +20,26 @@ early Japanese learners. Dark, minimal design.
   or locally with a friend on one device.
 - **Japanese rules scoring**: territory + prisoners, with a dead-stone marking phase after two
   passes (auto-suggested, and you can correct it) and configurable komi / handicap stones.
-- **詰碁 (tsumego)**: 16 short capturing puzzles. Every puzzle is proven solvable in exactly the
+- **詰碁 (tsumego)**: 30 short capturing puzzles. Every puzzle is proven solvable in exactly the
   stated number of moves by an exhaustive game-tree solver (`src/tsumego/solver.ts`), not just
-  authored by hand — see `src/tsumego/problems.test.ts`.
-- **あそびかた**: an illustrated rules page (liberties, capture, ko) for complete beginners.
+  authored by hand — see `src/tsumego/problems.test.ts`. New candidates can be generated and proven with
+  `npx tsx scripts/gen-puzzles.ts`.
+- **あそびかた**: an illustrated rules page (placing stones, liberties, capture, ko, scoring, dead stones and seki, handicap) for
+  complete beginners.
+- **せってい**: sound and vibration switches, clearing your record / puzzle progress / all saved data, and an
+  about section.
 - Move review/stepper after a finished game, **SGF export** (copy or download), an AI hint, an
   atari callout, and keyboard shortcuts on desktop (P twice to pass, U undo, H hint, arrows to
   step through a finished game's review, Esc to close dialogs).
+- **Keyboard and screen-reader play**: Tab to the board, arrow keys move a cursor, Enter/Space places a stone (or
+  toggles a group when marking dead stones); the cursor position, stone state, the computer's thinking and the
+  result are announced. Dialogs trap focus, restore it when closed, and are labelled.
+- **Positional superko**: a move that would recreate an earlier whole-board position is refused, so long ko cycles
+  cannot go on forever.
+- Games where you used 「まった」 (undo) or 「ヒント」 are marked as assisted and are not added to your record.
 - On 13×13 and 19×19, touch input is **tap to preview, tap again to place**, so a fingertip
   can't drop a stone on the wrong point. (Mouse: one click, as usual. 9×9: one tap.)
+- SGF export includes the date; the downloaded file has an ASCII name (`gonomichi-YYYY-MM-DD.sgf`).
 - Autosaves the game in progress (resume from the home screen) and keeps a simple win/loss
   record — both in `localStorage` only, nothing leaves your device. No analytics, no accounts,
   no third-party requests.
@@ -40,8 +51,9 @@ early Japanese learners. Dark, minimal design.
 Targets modern evergreen browsers. Only current Chromium and WebKit are tested; Safari/iOS 16 or newer
 should work. The app uses module Web Workers, container queries and `100dvh`, so older browsers will not
 lay out correctly.
-Japanese text relies on system fonts (Hiragino / Yu Gothic / Noto Sans JP) — on a system with no
-Japanese font installed the kana may render with fallback glyphs.
+Japanese text uses your system fonts (Hiragino / Yu Gothic / Noto Sans JP …). A small kana-only subset of Noto
+Sans JP / Noto Serif JP (SIL Open Font License, `public/fonts/OFL.txt`) is bundled and used only for kana that
+your system fonts lack, so devices without Japanese fonts still render correctly.
 
 ## Stack
 
@@ -73,6 +85,7 @@ node scripts/make-icons.mjs        # regenerate PWA icons
 node scripts/make-og-image.mjs     # regenerate the social share image (needs a Japanese serif font installed:
                                    #   Hiragino Mincho ProN, Yu Mincho or Noto Serif JP)
 node scripts/make-screenshots.mjs  # regenerate the phone screenshots (needs `npm run preview` running)
+npx tsx scripts/gen-puzzles.ts     # search for new, solver-proven tsumego candidates
 ```
 
 CI (`.github/workflows/deploy.yml`) runs typecheck, unit tests, build and the e2e suite; the
@@ -89,10 +102,14 @@ more weakly, and more slowly, on 19×19, and expect its strength to vary with ho
 
 ## Known limitations
 
-- Simple (positional) ko only, no superko cycle detection.
+- The AI itself only knows simple ko inside its search (the game engine refuses repetitions and tells the AI which
+  points are banned), and it never resigns. Its strength is time-capped, so it varies with device speed.
 - Dead stones are suggested by playouts and may be wrong; correct them by tapping before scoring.
   Seki is scored correctly only if you mark nothing dead in it.
-- The board cannot be operated with the keyboard or a screen reader yet (pointer/touch only).
+- The Japanese copy (`src/ja.ts`) has not been reviewed by a native speaker.
+- No SGF import, and only one saved game slot.
+- GitHub Pages cannot set HTTP headers, so the Content-Security-Policy is a `<meta>` tag (no `frame-ancestors`) and
+  cache lifetimes are GitHub's defaults (10 minutes).
 - Online/networked play is intentionally out of scope.
 - Verified in headless Chromium and WebKit only — not yet on a real iOS or Android device, and
   offline reload is only automated on Chromium.

@@ -12,7 +12,7 @@ test('ホーム → あそびかた', async ({ page }) => {
   await expectNoKanji(page);
 
   await page.getByText('あそびかた').click();
-  await expect(page.locator('.rule')).toHaveCount(6);
+  await expect(page.locator('.rule')).toHaveCount(9);
   await expectNoKanji(page);
 
   await page.getByRole('button', { name: 'もどる' }).click();
@@ -69,7 +69,7 @@ test('二人で打って、パス2回で終局まで進められる', async ({ p
 
   await page.getByRole('button', { name: 'パス', exact: true }).click();
   await page.getByRole('button', { name: 'パス', exact: true }).click();
-  await expect(page.getByText('しにいしの かくにん')).toBeVisible();
+  await expect(page.locator('.tb-title')).toHaveText('しにいしの かくにん');
   await expectNoKanji(page);
 
   await page.getByRole('button', { name: 'しゅうきょく' }).click();
@@ -94,7 +94,7 @@ test('詰碁：まちがえると案内が出て、ヒント通りに打つと�
   const errors = trackErrors(page);
   await page.goto('/');
   await page.getByText('つめご', { exact: true }).click();
-  await expect(page.locator('.pcard')).toHaveCount(16);
+  await expect(page.locator('.pcard')).toHaveCount(30);
   await expectNoKanji(page);
 
   await page.locator('.pcard').first().click();

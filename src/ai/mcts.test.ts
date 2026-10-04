@@ -52,6 +52,20 @@ describe('AI', () => {
   });
 });
 
+describe('打てない点の指定（banned）', () => {
+  it('banned の点は、序盤でも探索でも選ばない', () => {
+    const s = newGame(9);
+    const banned = Array.from({ length: 81 }, (_, i) => i).filter((i) => i !== 0 && i % 2 === 0);
+    for (let seed = 1; seed <= 8; seed++) {
+      const r = chooseMove(
+        { size: 9, board: s.board, toPlay: s.toPlay, ko: -1, komi: 6.5, moveNo: 0, last: -1, opponentPassed: false, level: 'nyumon', banned },
+        seededRng(seed),
+      );
+      expect(banned).not.toContain(r.move);
+    }
+  });
+});
+
 describe('死に石の推定', () => {
   it('黒の陣地に残された白の1子は死に石', () => {
     const rows = [

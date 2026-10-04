@@ -24,11 +24,21 @@ export const PUZZLE_BOARD_SIZE = 9;
 const LIST: Puzzle[] = [
   { id: 1, moves: 1, rows: ['.X...X', 'XOX..X', '.....X', '.....X', 'XXXXXX'], target: [1, 1] },
   { id: 2, moves: 1, rows: ['.XX..X', 'XOOX.X', '..X..X', '.....X', 'XXXXXX'], target: [1, 1] },
+  { id: 18, moves: 1, rows: ['XXOOXX','.XXOXX','X....X','XXX..X','XXXXXX'], target: [2,0] },
+  { id: 19, moves: 1, rows: ['XX..XX','..XXXX','XOX..X','XOOX.X','XXXXXX'], target: [1,2] },
+  { id: 20, moves: 1, rows: ['.XOOOX','XX.OOX','.XXXOX','XXXXXX','XXXXXX'], target: [2,0] },
+  { id: 21, moves: 1, rows: ['X.XXXX','OXX.XX','OOOOXX','XXOOOX','XXXXXX'], target: [0,1] },
   { id: 3, moves: 2, rows: ['...OOX', 'XXOOXX', 'XXX.XX', 'XXX.XX', 'XXXXXX'], target: [3, 0] },
   { id: 4, moves: 2, rows: ['XXXOXX', 'XXOOOX', '..O.OX', 'XXX.XX', 'XXXXXX'], target: [3, 0] },
   { id: 5, moves: 2, rows: ['X.OOOX', 'X..OOX', '.X.XXX', 'X.XX.X', 'XXXXXX'], target: [2, 0] },
   { id: 11, moves: 2, rows: ['.OX..X', 'XOXXXX', 'OOXX.X', 'O..X.X', 'XXXXXX'], target: [1, 0] },
   { id: 12, moves: 2, rows: ['X...XX', 'XX...X', 'XOOX.X', '..OXXX', 'XXXXXX'], target: [1, 2] },
+  { id: 23, moves: 2, rows: ['.OOX.X','.XO.XX','X.X.XX','X.XX.X','XXXXXX'], target: [1,0] },
+  { id: 24, moves: 2, rows: ['XX.OXX','.XXO.X','XOOOXX','XXXOOX','XXXXXX'], target: [3,0] },
+  { id: 26, moves: 2, rows: ['.OOXXX','OOXX.X','XOX.XX','XOOOXX','XXXXXX'], target: [1,0] },
+  { id: 27, moves: 2, rows: ['.OXXXX','OOX.XX','X.X..X','XX.X.X','XXXXXX'], target: [1,0] },
+  { id: 28, moves: 2, rows: ['X....X','XXXOXX','.OOOXX','OOOXXX','XXXXXX'], target: [3,1] },
+  { id: 30, moves: 2, rows: ['...XXX','.X.OOX','....OX','X.XOOX','XXXXXX'], target: [3,1] },
   { id: 6, moves: 3, rows: ['XOXXXX', '.OXXXX', '.OX..X', '.OX..X', 'XXXXXX'], target: [1, 0] },
   { id: 7, moves: 3, rows: ['....OX', 'XOOOOX', '.XXXXX', 'XX.XXX', 'XXXXXX'], target: [4, 0] },
   { id: 8, moves: 3, rows: ['XXXXXX', '..OO.X', 'X.XO.X', 'XXXOOX', 'XXXXXX'], target: [2, 1] },
@@ -38,6 +48,10 @@ const LIST: Puzzle[] = [
   { id: 14, moves: 3, rows: ['XX.OOX', 'XXX.OX', 'X....X', 'X..X.X', 'XXXXXX'], target: [3, 0] },
   { id: 15, moves: 3, rows: ['OOOXXX', 'O.OO.X', '..XX.X', 'XX..XX', 'XXXXXX'], target: [0, 0] },
   { id: 16, moves: 3, rows: ['X.O..X', 'XOOOXX', 'XXXOOX', '....XX', 'XXXXXX'], target: [2, 0] },
+  { id: 17, moves: 3, rows: ['.OX.XX','XOOX.X','XX..XX','....XX','XXXXXX'], target: [1,0] },
+  { id: 22, moves: 3, rows: ['..XX.X','OOOX.X','XX...X','.X..XX','XXXXXX'], target: [0,1] },
+  { id: 25, moves: 3, rows: ['..XX.X','XOO.XX','XOX.XX','...X.X','XXXXXX'], target: [1,1] },
+  { id: 29, moves: 3, rows: ['XX...X','..XXXX','..OO.X','OOOOOX','XXXXXX'], target: [2,2] },
 ];
 
 export const PUZZLES: Puzzle[] = LIST;

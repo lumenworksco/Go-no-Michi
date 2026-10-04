@@ -14,6 +14,7 @@ export function TsumegoList({ solved, onPick, onBack }: { solved: number[]; onPi
       <TopBar left={<BackButton onClick={onBack} />} title={ja.tsumego.title} />
       <div className="scroll">
         <p className="progress-line">{ja.tsumego.progress(solved.length, PUZZLES.length)}</p>
+        {PUZZLES.every((p) => solved.includes(p.id)) && <p className="all-done">{ja.tsumego.allDone}</p>}
         <div className="puzzle-grid">
           {PUZZLES.map((p) => {
             const done = solved.includes(p.id);
@@ -44,12 +45,15 @@ export function TsumegoPlay({
   onBack,
   onNext,
   hasNext,
+  allSolved = false,
 }: {
   puzzle: Puzzle;
   onSolved: (id: number) => void;
   onBack: () => void;
   onNext: () => void;
   hasNext: boolean;
+  /** すべての問題を解いた（最後の問題を解いたときに、お祝いを出す） */
+  allSolved?: boolean;
 }) {
   const solver = useMemo(() => puzzleSolver(puzzle), [puzzle]);
   const spec = useMemo(() => puzzleSpec(puzzle), [puzzle]);
@@ -218,7 +222,12 @@ export function TsumegoPlay({
 
       <div className={`t-status ${status}`} aria-live="polite">
         {status === 'playing' && <span>{ja.tsumego.tap}</span>}
-        {status === 'solved' && <b>{ja.tsumego.correct}</b>}
+        {status === 'solved' && (
+          <>
+            <b>{ja.tsumego.correct}</b>
+            {allSolved && <small>{ja.tsumego.allDone}</small>}
+          </>
+        )}
         {status === 'failed' && (
           <>
             <b>{ja.tsumego.wrong}</b>

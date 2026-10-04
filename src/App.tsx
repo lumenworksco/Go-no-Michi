@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, startTransition, Suspense, useEffect, useState } from 'react';
 import { Home } from './ui/Home';
 import { Rules } from './ui/Rules';
+import { Settings } from './ui/Settings';
 import { clearSavedGame, loadSavedGame, loadSolved, storeSolved, type SavedGame } from './save';
 import { Setup } from './ui/Setup';
 import { GameScreen } from './ui/GameScreen';
@@ -59,7 +60,9 @@ export function App() {
     } catch {
       /* ignore */
     }
-    setRoute(r);
+    // transition にしておくと、読みこみが必要な画面（詰碁）へ進むとき、読みこみが終わるまで今の画面が
+    // 出たままになる（空白の画面がちらつかない）
+    startTransition(() => setRoute(r));
   };
   /** 今の画面を置きかえる（次の詰碁へ、もう一局、など）。戻る履歴は増やさない。 */
   const replace = (r: Route) => {
@@ -68,7 +71,7 @@ export function App() {
     } catch {
       /* ignore */
     }
-    setRoute(r);
+    startTransition(() => setRoute(r));
   };
   /** 一つ前の画面に戻る。履歴を操作することで、端末の「戻る」ボタンと挙動がそろう。 */
   const back = () => {
@@ -95,6 +98,7 @@ export function App() {
             onPlay={() => go({ name: 'setup' })}
             onTsumego={() => go({ name: 'tsumegoList' })}
             onRules={() => go({ name: 'rules' })}
+            onSettings={() => go({ name: 'settings' })}
             onResume={() => saved && go({ name: 'game', settings: saved.settings, run: 0, resume: saved })}
             onDiscard={() => {
               clearSavedGame();
@@ -108,6 +112,8 @@ export function App() {
         );
       case 'rules':
         return <Rules onBack={back} />;
+      case 'settings':
+        return <Settings onBack={back} onResetSolved={() => setSolved([])} />;
       case 'setup':
         return (
           <Setup
@@ -145,6 +151,7 @@ export function App() {
             onBack={back}
             onNext={() => next && replace({ name: 'tsumego', puzzle: next })}
             hasNext={!!next}
+            allSolved={PUZZLES.every((p) => solved.includes(p.id))}
           />
         );
       }

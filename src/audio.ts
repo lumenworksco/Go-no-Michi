@@ -5,7 +5,14 @@ let ctx: AudioContext | null = null;
 let enabled = load<boolean>('gonomichi:sound', true, (v): v is boolean => typeof v === 'boolean');
 let noise: AudioBuffer | null = null;
 
+let vibrateOn = load<boolean>('gonomichi:vibrate', true, (v): v is boolean => typeof v === 'boolean');
+
 export const isSoundOn = () => enabled;
+export const isVibrateOn = () => vibrateOn;
+export function setVibrate(on: boolean) {
+  vibrateOn = on;
+  save('gonomichi:vibrate', on);
+}
 export function setSound(on: boolean) {
   enabled = on;
   save('gonomichi:sound', on);
@@ -91,7 +98,8 @@ export function playChime(up = true) {
 
 export function vibrate(ms: number | number[] = 10) {
   try {
-    if (enabled) navigator.vibrate?.(ms);
+    // 動きをへらす設定の人には、ふるえも出さない
+    if (vibrateOn && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) navigator.vibrate?.(ms);
   } catch {
     /* 非対応環境では何もしない */
   }

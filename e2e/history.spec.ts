@@ -48,7 +48,7 @@ test('詰碁の「つぎの もんだい」のあと、戻るは一覧に着く�
   await page.goBack();
   // 問題1ではなく一覧に戻る（一覧の見出しは「つめご」。「いちらん」は個々の問題画面の戻るボタンの名前）
   await expect(page.getByText('つめご', { exact: true })).toBeVisible();
-  await expect(page.locator('.pcard')).toHaveCount(16);
+  await expect(page.locator('.pcard')).toHaveCount(30);
 });
 
 test('対局中にホームへ戻ったあとの「戻る」で、対局に戻らない', async ({ page }) => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BLACK, WHITE } from './board';
-import { toSgf } from './sgf';
+import { sgfText, toSgf } from './sgf';
 
 describe('SGF', () => {
   it('着手とパスを書き出す', () => {
@@ -33,5 +33,12 @@ describe('SGF', () => {
 
   it('結果なし・名前なしでも壊れない', () => {
     expect(toSgf({ size: 9, komi: 6.5, handicap: 0, first: BLACK, moves: [] })).toBe('(;GM[1]FF[4]CA[UTF-8]AP[GoNoMichi]SZ[9]KM[6.5]RU[Japanese])');
+  });
+
+  it('対局日を書き、名前の ] と \\ はエスケープする', () => {
+    const sgf = toSgf({ size: 9, komi: 6.5, handicap: 0, first: BLACK, moves: [], blackName: 'a]b\\c', date: '2026-10-04' });
+    expect(sgf).toContain('PB[a\\]b\\\\c]');
+    expect(sgf).toContain('DT[2026-10-04]');
+    expect(sgfText('x]')).toBe('x\\]');
   });
 });

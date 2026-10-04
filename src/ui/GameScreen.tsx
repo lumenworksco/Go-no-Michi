@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BLACK, WHITE, EMPTY, opp, neighbors, libertyCount, type Color } from '../engine/board';
-import { newGame, playMove, passMove, isOver, scoreGame, chainOf, formatMokusu, type GameState } from '../engine/game';
+import { newGame, playMove, passMove, isOver, scoreGame, chainOf, formatMokusu, koBannedMoves, type GameState } from '../engine/game';
 import { toSgf } from '../engine/sgf';
 import { requestMove, requestHint, requestDead, cancelAi, cancelHint } from '../ai/client';
 import { ja } from '../ja';
@@ -17,6 +17,12 @@ interface Snap {
   move: number;
 }
 
+/** 今日の日付（YYYY-MM-DD・この端末の日付）。 */
+const today = () => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const colorName = (c: Color) => (c === BLACK ? ja.game.black : ja.game.white);
 
@@ -57,7 +63,7 @@ export function GameScreen({
     [settings.color],
   );
   const isAi = settings.mode === 'ai';
-  const initial = useMemo(() => newGame(settings.size, settings.komi, settings.handicap), [settings]);
+  const initial = useMemo(() => newGame(settings.size, settings.komi, settings.handicap, true), [settings]);
   const [hist, setHist] = useState<Snap[]>(() => replay(initial, resume?.moves ?? []));
   const cur = hist[hist.length - 1].state;
   const curRef = useRef(cur);
@@ -76,6 +82,8 @@ export function GameScreen({
   const [reviewIdx, setReviewIdx] = useState<number | null>(null);
   const [hint, setHint] = useState(-1);
   const [hinting, setHinting] = useState(false);
+  // まった・ヒントを使った対局は、せいせきに入れない（保存して、つづきから再開しても引きつぐ）
+  const [assisted, setAssisted] = useState(resume?.assisted ?? false);
   const token = useRef(0);
   const hintToken = useRef(0);
   const recorded = useRef(false);
@@ -90,8 +98,8 @@ export function GameScreen({
 
   // ---- 自動保存（中断して、ホームの「続きから」で再開できる） ----------------
   useEffect(() => {
-    persistProgress({ settings, human, moves: hist.slice(1).map((h) => h.move) }, phase === 'done');
-  }, [hist, phase, settings, human]);
+    persistProgress({ settings, human, moves: hist.slice(1).map((h) => h.move), ...(assisted ? { assisted } : {}) }, phase === 'done');
+  }, [hist, phase, settings, human, assisted]);
 
   // ---- 着手 ----------------------------------------------------------
   const doPlay = (idx: number) => {
@@ -160,6 +168,7 @@ export function GameScreen({
       moveNo: cur.moveNo,
       last: cur.last,
       opponentPassed: cur.passes === 1,
+      banned: koBannedMoves(cur),
       level: settings.level,
     }).then(async (r) => {
       await sleep(Math.max(0, 500 - (performance.now() - started)));
@@ -229,6 +238,7 @@ export function GameScreen({
   // ---- 操作 -----------------------------------------------------------
   const undo = () => {
     if (!canUndo) return;
+    if (isAi) setAssisted(true);
     token.current++;
     cancelAi();
     setThinking(false);
@@ -272,6 +282,7 @@ export function GameScreen({
   const askHint = () => {
     if (!isAi || phase !== 'play' || thinking || hinting || cur.toPlay !== human) return;
     const my = ++hintToken.current;
+    setAssisted(true);
     setHinting(true);
     requestHint({
       size: cur.size,
@@ -282,6 +293,7 @@ export function GameScreen({
       moveNo: cur.moveNo,
       last: cur.last,
       opponentPassed: cur.passes === 1,
+      banned: koBannedMoves(cur),
       level: 'chukyu',
     }).then((r) => {
       if (my !== hintToken.current) return;
@@ -300,9 +312,9 @@ export function GameScreen({
     playChime(!isAi || winner === human || winner === 0);
     if (isAi && !recorded.current) {
       recorded.current = true;
-      addRecord(winner === 0 ? 'draw' : winner === human ? 'win' : 'lose');
+      if (!assisted) addRecord(winner === 0 ? 'draw' : winner === human ? 'win' : 'lose');
     }
-  }, [phase, winner, isAi, human]);
+  }, [phase, winner, isAi, human, assisted]);
 
   const last = hist.length - 1;
   const viewIdx = phase === 'done' ? (reviewIdx ?? last) : last;
@@ -376,6 +388,7 @@ export function GameScreen({
       result: code,
       blackName: isAi ? (human === BLACK ? ja.game.you : ja.game.computer) : ja.game.black,
       whiteName: isAi ? (human === WHITE ? ja.game.you : ja.game.computer) : ja.game.white,
+      date: today(),
     });
   };
   const copySgf = async () => {
@@ -391,7 +404,7 @@ export function GameScreen({
       const url = URL.createObjectURL(new Blob([sgf()], { type: 'application/x-go-sgf' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `ごのみち-${new Date().toISOString().slice(0, 10)}.sgf`;
+      a.download = `gonomichi-${today()}.sgf`; // どの環境でも扱いやすいよう、ファイル名は英数字だけ
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast.show(ja.game.saved);
@@ -429,13 +442,24 @@ export function GameScreen({
     if (winner === 0) return ja.game.jigo;
     return ja.game.winBy(colorName(winner), formatMokusu(score!.margin));
   })();
+  // 読み上げ用の状況：結果 > 終局の確認 > コンピュータの思考 > 直前の着手
+  const liveText =
+    phase === 'done' && resultText
+      ? resultText
+      : phase === 'scoring'
+        ? `${ja.game.scoring}。${ja.game.scoringHelp}`
+        : thinking && isAi && phase === 'play'
+          ? ja.game.thinking
+          : view.moveNo > 0
+            ? ja.game.announce(view.moveNo, markOf(view, viewIdx))
+            : '';
   const youWon = winner !== null && winner !== 0 && isAi ? winner === human : null;
 
   return (
     <div className="screen game">
       <TopBar left={<BackButton onClick={leave} label={ja.game.back} />} title={titleText} right={<TopActions />} />
       <div className="sr-only" aria-live="polite">
-        {view.moveNo > 0 ? ja.game.announce(view.moveNo, markOf(view, viewIdx)) : ''}
+        {liveText}
       </div>
 
       {bar(topColor)}
@@ -599,6 +623,7 @@ export function GameScreen({
             <small className="kicker">{ja.game.resultTitle}</small>
             {youWon !== null && <div className={`verdict ${youWon ? 'win' : 'lose'}`}>{youWon ? ja.game.youWin : ja.game.youLose}</div>}
             <h2>{resultText}</h2>
+            {isAi && assisted && <p className="assisted-note">{ja.game.assistedNote}</p>}
             {!resigned && score && (
               <table className="score-table">
                 <thead>

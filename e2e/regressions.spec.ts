@@ -34,7 +34,7 @@ test.describe('保存とこわれたデータ', () => {
     await page.getByRole('button', { name: 'もどる' }).click();
 
     await page.getByText('つめご', { exact: true }).click();
-    await expect(page.locator('.pcard')).toHaveCount(16);
+    await expect(page.locator('.pcard')).toHaveCount(30);
     errors.assertNone();
   });
 

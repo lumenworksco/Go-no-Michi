@@ -58,6 +58,14 @@ describe('保存された対局', () => {
     expect(loadSavedGame()).toBeNull();
   });
 
+  it('assisted（まった・ヒントを使った）は真偽値だけ受けつけて、保存・復元できる', () => {
+    expect(parseSavedGame({ ...game([40]), assisted: true })?.assisted).toBe(true);
+    expect(parseSavedGame({ ...game([40]), assisted: false })?.assisted).toBeUndefined();
+    expect(parseSavedGame({ ...game([40]), assisted: 'yes' })).toBeNull();
+    storeSavedGame({ ...game([40]), assisted: true });
+    expect(loadSavedGame()?.assisted).toBe(true);
+  });
+
   it('終局、または一手もない（待ったで最初まで戻した）ときは保存を消す', () => {
     persistProgress(game([40]), false);
     expect(loadSavedGame()).not.toBeNull();

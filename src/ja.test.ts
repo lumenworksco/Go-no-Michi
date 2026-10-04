@@ -31,6 +31,8 @@ describe('ひらがな・カタカナだけ', () => {
   });
 
   it('画面のコード・HTML・設定ファイルの文字列にも漢字がない（コメントは除く）', () => {
+    const html404 = readFileSync('public/404.html', 'utf-8');
+    expect(KANJI.test(html404.replace(/<!--[\s\S]*?-->/g, ''))).toBe(false);
     const files = [
       ...readdirSync('src/ui').map((f) => join('src/ui', f)),
       'src/App.tsx',
@@ -43,6 +45,8 @@ describe('ひらがな・カタカナだけ', () => {
     const bad: string[] = [];
     for (const f of files) {
       const code = readFileSync(f, 'utf-8')
+        // 検索エンジン向けのメタ情報（画面に出ない）だけは、印の間に限って漢字を許す
+        .replace(/<!-- kanji-ok:start[\s\S]*?<!-- kanji-ok:end -->/g, '')
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .replace(/<!--[\s\S]*?-->/g, '')
         .replace(/(^|[^:])\/\/.*$/gm, '$1');

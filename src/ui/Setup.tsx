@@ -4,30 +4,7 @@ import { maxHandicap } from '../engine/game';
 import { ja } from '../ja';
 import { loadSettings, SETTINGS_KEY, type GameSettings } from '../settings';
 import { save } from '../store';
-import { BackButton, Sheet, TopBar } from './common';
-
-function Seg<T extends string | number>({
-  value,
-  options,
-  onChange,
-  cols,
-}: {
-  value: T;
-  options: { value: T; label: string; sub?: string }[];
-  onChange: (v: T) => void;
-  cols?: number;
-}) {
-  return (
-    <div className="seg" style={cols ? { gridTemplateColumns: `repeat(${cols}, 1fr)` } : undefined}>
-      {options.map((o) => (
-        <button key={String(o.value)} className={o.value === value ? 'on' : ''} onClick={() => onChange(o.value)} aria-pressed={o.value === value}>
-          <span>{o.label}</span>
-          {o.sub && <small>{o.sub}</small>}
-        </button>
-      ))}
-    </div>
-  );
-}
+import { BackButton, Seg, Sheet, TopBar } from './common';
 
 export function Setup({
   onStart,

@@ -8,6 +8,7 @@ export function Home({
   onPlay,
   onTsumego,
   onRules,
+  onSettings,
   onResume,
   onDiscard,
   saved,
@@ -18,6 +19,7 @@ export function Home({
   onPlay: () => void;
   onTsumego: () => void;
   onRules: () => void;
+  onSettings: () => void;
   onResume: () => void;
   onDiscard: () => void;
   saved: SavedGame | null;
@@ -89,6 +91,9 @@ export function Home({
         <button className="big-btn" onClick={onTsumego}>
           <span className="bb-title">{ja.home.tsumego}</span>
           <span className="bb-sub">{ja.home.tsumegoSub(solved, PUZZLES.length)}</span>
+        </button>
+        <button className="text-btn settings-link" onClick={onSettings}>
+          {ja.home.settings}
         </button>
       </div>
 

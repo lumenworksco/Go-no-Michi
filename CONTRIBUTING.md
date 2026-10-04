@@ -6,7 +6,8 @@ Thanks for taking a look. A few project rules:
   `npm test` fails if a kanji appears in the UI strings or UI code.
 - Online/networked play is out of scope. Rules are Japanese-style (territory + prisoners), simple ko.
 - Add a tsumego puzzle in `src/tsumego/problems.ts` — `problems.test.ts` proves it is solvable in
-  exactly the stated number of moves.
+  exactly the stated number of moves. `npx tsx scripts/gen-puzzles.ts` searches for candidates that the solver
+  has already proven (unique first move).
 
 ## Setup
 

@@ -7,6 +7,8 @@ export interface SavedGame {
   human: Color;
   /** 着手の交点。パスは -1 */
   moves: number[];
+  /** まった・ヒントを使った（せいせきに入れない） */
+  assisted?: boolean;
 }
 
 const KEY = 'gonomichi:save';
@@ -22,7 +24,8 @@ export function parseSavedGame(raw: unknown): SavedGame | null {
   if (!Array.isArray(g.moves)) return null;
   const points = settings.size * settings.size;
   for (const m of g.moves) if (typeof m !== 'number' || !Number.isInteger(m) || m < -1 || m >= points) return null;
-  return { settings, human: g.human, moves: g.moves as number[] };
+  if (g.assisted !== undefined && typeof g.assisted !== 'boolean') return null;
+  return { settings, human: g.human, moves: g.moves as number[], ...(g.assisted ? { assisted: true } : {}) };
 }
 
 export const loadSavedGame = (): SavedGame | null => parseSavedGame(load<unknown>(KEY, null));
@@ -48,6 +51,7 @@ export function loadRecord(): Record3 {
   const r = load<unknown>(REC, {}) as Partial<Record<keyof Record3, unknown>> | null;
   return { win: count(r?.win), lose: count(r?.lose), draw: count(r?.draw) };
 }
+export const resetRecord = () => remove(REC);
 export function addRecord(r: 'win' | 'lose' | 'draw') {
   const rec = loadRecord();
   rec[r]++;
@@ -59,3 +63,4 @@ export const SOLVED_KEY = 'gonomichi:tsumego';
 export const loadSolved = (): number[] =>
   load<number[]>(SOLVED_KEY, [], (v): v is number[] => Array.isArray(v) && v.every((x) => typeof x === 'number' && Number.isFinite(x)));
 export const storeSolved = (ids: number[]) => save(SOLVED_KEY, ids);
+export const resetSolved = () => remove(SOLVED_KEY);

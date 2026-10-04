@@ -5,6 +5,9 @@ import { handicapPositions } from './game';
 const L = 'abcdefghijklmnopqrst';
 const pt = (size: number, idx: number) => L[idx % size] + L[Math.floor(idx / size)];
 
+/** SGF のテキスト値では、] と \ を \ でエスケープする。 */
+export const sgfText = (v: string) => v.replace(/([\]\\])/g, '\\$1');
+
 export interface SgfInput {
   size: number;
   komi: number;
@@ -16,12 +19,15 @@ export interface SgfInput {
   result?: string;
   blackName?: string;
   whiteName?: string;
+  /** 対局日（YYYY-MM-DD） */
+  date?: string;
 }
 
 export function toSgf(g: SgfInput): string {
   const head = [`GM[1]`, `FF[4]`, `CA[UTF-8]`, `AP[GoNoMichi]`, `SZ[${g.size}]`, `KM[${g.komi}]`, `RU[Japanese]`];
-  if (g.blackName) head.push(`PB[${g.blackName}]`);
-  if (g.whiteName) head.push(`PW[${g.whiteName}]`);
+  if (g.blackName) head.push(`PB[${sgfText(g.blackName)}]`);
+  if (g.whiteName) head.push(`PW[${sgfText(g.whiteName)}]`);
+  if (g.date) head.push(`DT[${sgfText(g.date)}]`);
   if (g.handicap >= 2) {
     head.push(`HA[${g.handicap}]`, ...handicapPositions(g.size, g.handicap).map((i) => `AB[${pt(g.size, i)}]`));
   }

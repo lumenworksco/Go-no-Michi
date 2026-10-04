@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Accessibility
+- The board can be played with the keyboard (Tab, arrow keys, Enter/Space) and is announced to screen readers
+  (cursor position, stone state, the computer thinking, the result).
+- Dialogs trap focus, restore it on close, are labelled, and close with Esc.
+- Visible keyboard focus; larger tap targets; slightly larger small text; text in results and rules can be selected.
+- `prefers-reduced-motion` now also stops looping animations and transitions, and disables vibration.
+
+### Features
+- New せってい (settings) screen: sound, vibration, clear record / puzzle progress / all data, about and licences.
+- 14 new tsumego puzzles (30 total), all proven by the solver; a completion message when all are solved.
+- Rules page: placing stones, dead stones and seki, handicap.
+- Positional superko in the game engine; the AI is told which points are banned.
+- Games that used undo or hints are not added to the win/loss record.
+- SGF export includes the date and escapes names; the downloaded file name is ASCII.
+
+### Web / PWA
+- Content-Security-Policy, referrer policy, `og:image:alt`, JSON-LD and keywords (kanji allowed in invisible metadata only),
+  `robots.txt`, `sitemap.xml`, a kana 404 page, manifest `id` / `categories` / screenshots.
+- Kana-only Noto Sans/Serif JP subsets bundled as a fallback for devices without Japanese fonts.
+- CSS fallbacks for browsers without `dvh` / container queries.
+- Navigation to lazily loaded screens no longer flashes blank.
+
+### Cleanup
+- Removed unused UI strings.
+
+### Earlier in this release
+
 - Fixed: pressing the browser's Forward button could reopen an old game and overwrite a newer save.
 - Fixed: corrupt saved data (settings, progress, record, game) no longer crashes the app; the error
   screen now clears all saved data.

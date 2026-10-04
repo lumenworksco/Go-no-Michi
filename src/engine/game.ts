@@ -24,7 +24,14 @@ export interface GameState {
   last: number;
   moveNo: number;
   komi: number;
+  /**
+   * これまでに現れた盤面（ポジショナル・スーパーコウ）。あれば、同じ盤面を作る手は打てない
+   * （3 コウなどの長い循環を防ぐ）。詰碁の探索は単純なコウだけで足りるので、付けない。
+   */
+  seen?: ReadonlySet<string>;
 }
+
+const boardKey = (b: Uint8Array) => b.join('');
 
 export type MoveError = 'occupied' | 'suicide' | 'ko' | 'over';
 
@@ -67,14 +74,25 @@ export function maxHandicap(size: number): number {
   return size === 9 ? 5 : 9;
 }
 
-export function newGame(size: number, komi = 6.5, handicap = 0): GameState {
+export function newGame(size: number, komi = 6.5, handicap = 0, superko = false): GameState {
   const board = new Uint8Array(size * size);
   let toPlay: Color = BLACK;
   if (handicap >= 2) {
     for (const i of handicapPositions(size, handicap)) board[i] = BLACK;
     toPlay = WHITE;
   }
-  return { size, board, toPlay, prisoners: [0, 0, 0], ko: -1, passes: 0, last: -1, moveNo: 0, komi };
+  return {
+    size,
+    board,
+    toPlay,
+    prisoners: [0, 0, 0],
+    ko: -1,
+    passes: 0,
+    last: -1,
+    moveNo: 0,
+    komi,
+    ...(superko ? { seen: new Set([boardKey(board)]) } : {}),
+  };
 }
 
 export const isOver = (s: GameState) => s.passes >= 2;
@@ -86,6 +104,12 @@ export function playMove(s: GameState, idx: number): MoveResult {
   const board = s.board.slice();
   const res = placeStone(board, s.size, idx, s.toPlay);
   if (!res) return { ok: false, reason: 'suicide' };
+  let seen = s.seen;
+  if (seen) {
+    const k = boardKey(board);
+    if (seen.has(k)) return { ok: false, reason: 'ko' }; // 同じ盤面にもどす手は打てない
+    seen = new Set(seen).add(k);
+  }
   const prisoners: [number, number, number] = [...s.prisoners];
   prisoners[s.toPlay] += res.captured.length;
   const ko = res.captured.length === 1 && res.ownSize === 1 && res.ownLibs === 1 ? res.captured[0] : -1;
@@ -101,12 +125,24 @@ export function playMove(s: GameState, idx: number): MoveResult {
       passes: 0,
       last: idx,
       moveNo: s.moveNo + 1,
+      ...(seen ? { seen } : {}),
     },
   };
 }
 
 export function passMove(s: GameState): GameState {
   return { ...s, toPlay: opp(s.toPlay), ko: -1, passes: s.passes + 1, last: -1, moveNo: s.moveNo + 1 };
+}
+
+/** いま打てない点のうち、コウ（同形反復を含む）が理由のもの。AI に「ここは打てない」と伝えるのに使う。 */
+export function koBannedMoves(s: GameState): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < s.board.length; i++) {
+    if (s.board[i] !== EMPTY) continue;
+    const r = playMove(s, i);
+    if (!r.ok && r.reason === 'ko') out.push(i);
+  }
+  return out;
 }
 
 /** 打てる点（自殺手・コウ・占有済みを除く）。ヒント表示やテスト用。 */

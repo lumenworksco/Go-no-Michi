@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactElement } from '
 import { BLACK, WHITE, EMPTY, type Color } from '../engine/board';
 import type { Window } from '../tsumego/solver';
 import { ja } from '../ja';
+import { pointLabel } from '../notation';
 
 export interface FadingStone {
   idx: number;
@@ -77,6 +78,9 @@ export function Board({
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState(-1);
   const [pending, setPending] = useState(-1);
+  // キーボード操作用のカーソル（やじるしキーで動かし、Enter / Space で置く）
+  const [cursor, setCursor] = useState(-1);
+  const [focused, setFocused] = useState(false);
   const pressed = useRef(false);
   // 同じ画面に碁盤が複数あっても（詰碁の一覧など）、グラデーションの id がぶつからないようにする
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -172,18 +176,51 @@ export function Board({
   }, [board, size, last, animateLast, moveKey, dead, owner, v.x0, v.x1, v.y0, v.y1, gB, gW]);
 
   // 指を置いている間はそこ、離したあとは確認中の点にうすい石を出す
-  const ghostAt = hover >= 0 ? hover : pending;
+  const kbAt = focused && interactive ? cursor : -1;
+  const ghostAt = hover >= 0 ? hover : kbAt >= 0 ? kbAt : pending;
   const showGhost = interactive && ghostAt >= 0 && board[ghostAt] === EMPTY && (canPlay ? canPlay(ghostAt) : true);
   const gx = ghostAt % size;
   const gy = (ghostAt / size) | 0;
+
+  const moveCursor = (dx: number, dy: number) => {
+    setCursor((c) => {
+      if (c < 0) return Math.round((v.y0 + v.y1) / 2) * size + Math.round((v.x0 + v.x1) / 2);
+      const x = Math.max(v.x0, Math.min(v.x1, (c % size) + dx));
+      const y = Math.max(v.y0, Math.min(v.y1, ((c / size) | 0) + dy));
+      return y * size + x;
+    });
+  };
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!interactive || e.metaKey || e.ctrlKey || e.altKey) return;
+    const d: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+    if (d[e.key]) {
+      e.preventDefault();
+      moveCursor(...d[e.key]);
+    } else if ((e.key === 'Enter' || e.key === ' ') && cursor >= 0) {
+      e.preventDefault();
+      onPoint?.(cursor);
+    }
+  };
+  // 読み上げ用：カーソルのある点の名前と、そこに何があるか
+  const cursorSpeech =
+    kbAt >= 0 ? `${pointLabel(size, kbAt)} ${board[kbAt] === BLACK ? ja.aria.stoneBlack : board[kbAt] === WHITE ? ja.aria.stoneWhite : ja.aria.pointEmpty}` : '';
 
   return (
     <div className={`board-wrap${full ? '' : ' cropped'}`} style={{ aspectRatio: `${vb.w} / ${vb.h}`, ['--ar' as string]: vb.w / vb.h }}>
       <svg
         ref={svgRef}
         viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
-        role="img"
-        aria-label={ja.aria.board}
+        role={interactive ? 'application' : 'img'}
+        aria-label={interactive ? ja.aria.boardKeys : ja.aria.board}
+        tabIndex={interactive ? 0 : -1}
+        onKeyDown={onKeyDown}
+        onFocus={(e) => {
+          // マウス・指でさわったときは出さない。キーボードで入ってきたときだけカーソルを出す
+          if (!e.currentTarget.matches(':focus-visible')) return;
+          setFocused(true);
+          setCursor((c) => (c >= 0 ? c : Math.round((v.y0 + v.y1) / 2) * size + Math.round((v.x0 + v.x1) / 2)));
+        }}
+        onBlur={() => setFocused(false)}
         className={interactive ? 'board-svg interactive' : 'board-svg'}
         onPointerDown={(e) => {
           if (!interactive) return;
@@ -251,12 +288,16 @@ export function Board({
           <circle key={`d${d}`} cx={d % size} cy={(d / size) | 0} r={0.13} className="dot" />
         ))}
         {hint >= 0 && <circle cx={hint % size} cy={(hint / size) | 0} r={0.32} className="hint" />}
+        {kbAt >= 0 && <rect x={(kbAt % size) - 0.46} y={((kbAt / size) | 0) - 0.46} width={0.92} height={0.92} rx={0.12} className="kbcursor" pointerEvents="none" />}
         {showGhost && (
           <g transform={`translate(${gx} ${gy})`} pointerEvents="none" className={pending >= 0 && hover < 0 ? 'ghost pending' : 'ghost'}>
             <circle r={R} fill={ghostColor === BLACK ? `url(#${gB})` : `url(#${gW})`} />
           </g>
         )}
       </svg>
+      <div className="sr-only" aria-live="polite">
+        {cursorSpeech}
+      </div>
     </div>
   );
 }

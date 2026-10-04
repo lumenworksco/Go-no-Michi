@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BLACK, EMPTY, WHITE, isLegalPlacement, placeStone, type Color } from './board';
-import { handicapPositions, isOver, newGame, passMove, playMove, scoreGame, type GameState } from './game';
+import { handicapPositions, isOver, koBannedMoves, newGame, passMove, playMove, scoreGame, type GameState } from './game';
 import { seededRng } from '../ai/mcts';
 import { at, stateFrom } from './testutil';
 
@@ -109,5 +109,39 @@ describe('地の数え方の境目', () => {
     s = passMove(passMove(s));
     expect(isOver(s)).toBe(true);
     expect(playMove(s, 0)).toEqual({ ok: false, reason: 'over' });
+  });
+});
+
+describe('同形反復（スーパーコウ）', () => {
+  const rows = ['.XO......', 'XO.O.....', '.XO......', '.........', '.........', '.........', '.........', '.........', '.........'];
+
+  it('単純なコウは、これまでどおり直後だけ禁止（スーパーコウなしの盤）', () => {
+    let s = stateFrom(rows, BLACK);
+    expect(s.seen).toBeUndefined();
+    const r = playMove(s, at(9, 2, 1));
+    if (!r.ok) throw new Error('illegal');
+    s = r.state;
+    expect(s.seen).toBeUndefined(); // 詰碁の探索などには付かない
+    expect(playMove(s, at(9, 1, 1))).toEqual({ ok: false, reason: 'ko' });
+  });
+
+  it('それまでに現れた盤面を作る手は打てない（長い循環を止める）', () => {
+    const base = newGame(9, 6.5, 0, true);
+    const target = at(9, 4, 4);
+    // (4,4) に黒石がある盤面が、すでに一度現れたことにする
+    const board = base.board.slice();
+    board[target] = BLACK;
+    const forged = { ...base, seen: new Set([...(base.seen ?? []), board.join('')]) };
+    expect(playMove(forged, target)).toEqual({ ok: false, reason: 'ko' });
+    expect(koBannedMoves(forged)).toEqual([target]);
+    expect(playMove(forged, at(9, 3, 3)).ok).toBe(true); // ほかの点は打てる
+  });
+
+  it('パスでは盤面の記録は増えず、石を置くと 1 つ増える', () => {
+    const s0 = newGame(9, 6.5, 0, true);
+    const p = passMove(s0);
+    expect(p.seen?.size).toBe(1);
+    const r = playMove(p, at(9, 2, 2));
+    expect(r.ok && r.state.seen?.size).toBe(2);
   });
 });
