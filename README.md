@@ -91,6 +91,7 @@ node scripts/make-icons.mjs        # regenerate PWA icons
 node scripts/make-og-image.mjs     # regenerate the social share image (needs a Japanese serif font installed:
                                    #   Hiragino Mincho ProN, Yu Mincho or Noto Serif JP)
 node scripts/make-screenshots.mjs  # regenerate the phone screenshots (needs `npm run preview` running)
+node scripts/phone-check.mjs       # emulated phones (portrait, small, landscape): all screens, overflow/tap-target checks
 npx tsx scripts/gen-puzzles.ts     # search for new, solver-proven tsumego candidates
 ```
 

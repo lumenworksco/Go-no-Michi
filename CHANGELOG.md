@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Phone layout fixes (found with `scripts/phone-check.mjs`)
+- Landscape phones: two-column home, compact game/puzzle panels, dialogs that fit and scroll, safe-area side margins.
+- Small phones (≤ 360 px): buttons no longer wrap; the "tap again" toast no longer wraps or covers the player bar.
+- Tap targets of at least 44 px for variation buttons, SGF copy/save links and the GitHub link.
+
 ### Open an SGF, more saved games, a resigning computer
 - 「きふを ひらく」: open an SGF file or pasted text and step through it (`CA[...]` legacy encodings supported;
   9/13/19 only).

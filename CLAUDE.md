@@ -12,11 +12,24 @@ picking the project back up.
 
 ## Status (as of the last session)
 
-Feature-complete for a v1 and hardened: rules engine, AI, 16 tsumego puzzles (all proven
+**Released** (October 2026) at go.braunf.com. Feature-complete for a v1 and hardened: rules engine, AI, 30 tsumego puzzles (all proven
 solvable by exhaustive search, not just authored), full Japanese-beginner UI, responsive
 phone↔desktop layout, installable offline PWA, SGF export, game review, error boundary, and an
 e2e suite covering phone/desktop × Chromium/WebKit. 189 unit tests and 36 e2e tests (×4 browser
 projects = 144 runs; 11 are skipped by design: offline-reload on WebKit, touch-only on desktop, keyboard-only on mobile, Chromium-only Tab navigation), all green locally and in CI.
+
+**Release housekeeping still on the owner's list:** ask GitHub Support to purge the old cached commits (the history was
+rewritten in Oct 2026 to remove account/credential notes from an old `CLAUDE.md` and to translate two English commit
+messages — all SHAs before the latest changed, the tree did not); the author email is still in commit metadata.
+
+**Working on this repo — practical notes**
+- Push with the HTTPS `gh` credential trick in `CLAUDE.local.md`. CI (`deploy.yml`) gates the deploy on typecheck, unit tests *and* e2e.
+- If e2e fails locally with timeouts while the machine is busy (load average far above the core count), re-run with
+  `npx playwright test --workers=1` before suspecting the code; GitHub's runner is the clean reference.
+- Short landscape phones are a supported layout: `@media (max-height: 520px) and (min-aspect-ratio: 5/4)` in
+  `styles.css` (two-column home, compact game panel/buttons); sheets are `max-height` + scrollable; narrow phones use
+  `@media (max-width: 360px)`. After CSS layout changes, run `scripts/phone-check.mjs` and look at the screenshots.
+- The toast must keep `width: max-content` (with `left: 50%` it otherwise wraps at half the screen width).
 
 **Open items / known gaps** (not blocking, just not done):
 - Real iOS and Android devices (including offline use) and the Japanese copy have been checked by the owner
@@ -48,6 +61,9 @@ npm run e2e      # playwright (needs `npx playwright install chromium webkit` on
 npm run arena    # AI-vs-AI strength check (scripts/arena.ts, slow). Override with env vars,
                  # e.g. SZ=13 A=chukyu B=shokyu N=4 npm run arena
 npx tsx scripts/bench.ts         # AI response time per board size
+node scripts/phone-check.mjs     # emulated iPhone 13/SE, Pixel 7, landscape: every screen, overflow/tap-target/console checks + screenshots (BASE=… for a local preview)
+npx tsx scripts/gen-puzzles.ts   # search for new solver-proven tsumego candidates
+npx tsx scripts/resign-check.ts  # shows the AI-resign rule on real games (slow)
 node scripts/make-icons.mjs      # regenerate PWA icons
 node scripts/make-og-image.mjs   # regenerate the OG/social share image (needs @playwright/test)
 ```
