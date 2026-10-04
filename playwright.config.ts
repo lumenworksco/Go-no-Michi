@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 // PORT: ローカルの vite preview を見るか、BASE_URL で本番サイトをそのまま見るか。
 // 例: npm run e2e            → http://127.0.0.1:4173 を見る（webServer が自動で起動）
-//     BASE_URL=https://go.braunf.com/ npm run e2e -- --project=chromium-desktop
+//     BASE_URL=https://go.braunf.com/ npm run e2e:live   （desktop-chromium と mobile-webkit だけ動かす）
 const baseURL = process.env.BASE_URL ?? 'http://127.0.0.1:4173';
 
 export default defineConfig({

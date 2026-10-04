@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { ja } from '../ja';
 import { PUZZLES } from '../tsumego/problems';
 import { loadRecord, type SavedGame } from '../save';
-import { TopActions, TopBar } from './common';
+import { Sheet, TopActions, TopBar } from './common';
 
 export function Home({
   onPlay,
@@ -11,6 +12,8 @@ export function Home({
   onDiscard,
   saved,
   solved,
+  updateAvailable = false,
+  onUpdate,
 }: {
   onPlay: () => void;
   onTsumego: () => void;
@@ -19,8 +22,12 @@ export function Home({
   onDiscard: () => void;
   saved: SavedGame | null;
   solved: number;
+  /** あたらしいバージョンが待機している */
+  updateAvailable?: boolean;
+  onUpdate?: () => void;
 }) {
-  const rec = loadRecord();
+  const [rec] = useState(loadRecord);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const games = rec.win + rec.lose + rec.draw;
   return (
     <div className="screen home">
@@ -54,6 +61,14 @@ export function Home({
         {games > 0 && <p className="record">{ja.home.record(rec.win, rec.lose, rec.draw)}</p>}
       </div>
       <div className="home-actions">
+        {updateAvailable && (
+          <div className="update-card" role="status">
+            <span>{ja.home.updateAvailable}</span>
+            <button className="act primary" onClick={onUpdate}>
+              {ja.home.update}
+            </button>
+          </div>
+        )}
         {saved && (
           <div className="resume-card">
             <button className="big-btn resume" onClick={onResume}>
@@ -62,7 +77,7 @@ export function Home({
                 {ja.home.resumeSub(saved.settings.size, saved.settings.mode === 'ai' ? ja.setup.levelName[saved.settings.level] : ja.setup.local, saved.moves.length)}
               </span>
             </button>
-            <button className="text-btn discard" onClick={onDiscard}>
+            <button className="text-btn discard" onClick={() => setConfirmDiscard(true)}>
               {ja.home.discard}
             </button>
           </div>
@@ -76,6 +91,27 @@ export function Home({
           <span className="bb-sub">{ja.home.tsumegoSub(solved, PUZZLES.length)}</span>
         </button>
       </div>
+
+      {confirmDiscard && (
+        <Sheet onClose={() => setConfirmDiscard(false)}>
+          <h2>{ja.home.discardAsk}</h2>
+          <p>{ja.home.discardBody}</p>
+          <div className="sheet-actions">
+            <button className="act" onClick={() => setConfirmDiscard(false)}>
+              {ja.game.cancel}
+            </button>
+            <button
+              className="act danger solid"
+              onClick={() => {
+                setConfirmDiscard(false);
+                onDiscard();
+              }}
+            >
+              {ja.home.discardYes}
+            </button>
+          </div>
+        </Sheet>
+      )}
     </div>
   );
 }

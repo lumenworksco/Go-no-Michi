@@ -1,6 +1,7 @@
 // 詰碁の全幅探索。出題データを手で信じるのではなく、機械で「N手以内に取れる」を証明する。
 import { EMPTY, type Color } from '../engine/board';
 import { passMove, playMove, type GameState } from '../engine/game';
+import { PUZZLE_BOARD_SIZE, puzzleSpec, type Puzzle } from './problems';
 
 export interface Window {
   x0: number;
@@ -127,4 +128,9 @@ export class Solver {
     }
     return best;
   }
+}
+
+/** 問題を解く探索器（問題の定義 problems.ts は軽く保つため、探索はこちらに置く）。 */
+export function puzzleSolver(p: Puzzle): Solver {
+  return new Solver(puzzleSpec(p), PUZZLE_BOARD_SIZE);
 }

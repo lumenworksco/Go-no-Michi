@@ -31,6 +31,11 @@ test('サービスワーカーが効けば、オフラインでもホームが�
     await page.reload();
     await expect(page.getByText('ごのみち')).toBeVisible();
     await expect(page.getByText('たいきょく', { exact: true })).toBeVisible();
+    // 詰碁の画面は開くときに別ファイルを読みこむ。それもオフラインで開けること
+    await page.getByText('つめご', { exact: true }).click();
+    await expect(page.locator('.pcard')).toHaveCount(16);
+    await page.locator('.pcard').first().click();
+    await expect(page.locator('.goal')).toBeVisible();
   } finally {
     await context.setOffline(false);
   }

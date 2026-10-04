@@ -3,8 +3,8 @@ import { BLACK, EMPTY } from '../engine/board';
 import { passMove, playMove, type GameState } from '../engine/game';
 import { ja } from '../ja';
 import { playStone, playCapture, playChime, vibrate } from '../audio';
-import { CROP, PUZZLES, puzzleNumber, PUZZLE_BOARD_SIZE, WINDOW, puzzleSolver, puzzleSpec, puzzleState, type Puzzle } from '../tsumego/problems';
-import { inWindow, isCaptured } from '../tsumego/solver';
+import { CROP, PUZZLES, puzzleNumber, PUZZLE_BOARD_SIZE, WINDOW, puzzleSpec, puzzleState, type Puzzle } from '../tsumego/problems';
+import { inWindow, isCaptured, puzzleSolver } from '../tsumego/solver';
 import { Board, type FadingStone } from './Board';
 import { BackButton, StoneIcon, TopActions, TopBar, useToast } from './common';
 

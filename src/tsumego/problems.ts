@@ -3,7 +3,7 @@
 import { BLACK } from '../engine/board';
 import { newGame, type GameState } from '../engine/game';
 import { parseBoard } from '../engine/testutil';
-import { Solver, type SolveSpec, type Window } from './solver';
+import type { SolveSpec, Window } from './solver';
 
 export interface Puzzle {
   id: number;
@@ -54,8 +54,4 @@ export function puzzleState(p: Puzzle): GameState {
 
 export function puzzleSpec(p: Puzzle): SolveSpec {
   return { targets: [p.target[1] * PUZZLE_BOARD_SIZE + p.target[0]], mode: 'all', window: WINDOW, attacker: BLACK };
-}
-
-export function puzzleSolver(p: Puzzle): Solver {
-  return new Solver(puzzleSpec(p), PUZZLE_BOARD_SIZE);
 }

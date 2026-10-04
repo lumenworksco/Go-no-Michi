@@ -54,6 +54,17 @@ export function cropTapper(page: Page) {
   };
 }
 
+/** boardTapper の指（タッチ）版。pointerType が 'touch' になる。 */
+export function touchTapper(page: Page, size: number) {
+  const pad = 0.95;
+  const span = size - 1 + pad * 2;
+  return async (x: number, y: number) => {
+    const box = await page.locator('svg.board-svg').boundingBox();
+    if (!box) throw new Error('board not visible');
+    await page.touchscreen.tap(box.x + ((x + pad) / span) * box.width, box.y + ((y + pad) / span) * box.height);
+  };
+}
+
 /** 盤面の交点をタップ／クリックする。size×size の碁盤「全体」が見えている（詰碁の切り取り表示ではない）前提。 */
 export function boardTapper(page: Page, size: number) {
   const pad = 0.95; // Board.tsx の、盤全体表示のときの余白

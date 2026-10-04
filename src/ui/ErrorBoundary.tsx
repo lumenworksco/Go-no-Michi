@@ -1,6 +1,6 @@
 import { Component, type ReactNode } from 'react';
 import { ja } from '../ja';
-import { clearSavedGame } from '../save';
+import { clearAllData } from '../store';
 
 interface Props {
   children: ReactNode;
@@ -12,7 +12,7 @@ interface State {
 /**
  * 画面の描画中にエラーが起きても、まっくらな画面のままにしない。
  * 読みこみなおしボタンと、こわれた保存データが原因のときのための
- * 「対局の保存を消して読みこみなおす」ボタンを出す。
+ * 「保存したデータを全部消して読みこみなおす」ボタンを出す（対局・設定・成績・詰碁の進み具合）。
  */
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
@@ -22,7 +22,6 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
-    // eslint-disable-next-line no-console
     console.error(error);
   }
 
@@ -41,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <button
               className="act danger"
               onClick={() => {
-                clearSavedGame();
+                clearAllData();
                 location.reload();
               }}
             >

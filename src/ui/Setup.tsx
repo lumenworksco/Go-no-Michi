@@ -1,22 +1,10 @@
 import { useState } from 'react';
 import { BLACK, WHITE, type Color } from '../engine/board';
 import { maxHandicap } from '../engine/game';
-import type { Level } from '../ai/mcts';
 import { ja } from '../ja';
-import { load, save } from '../store';
+import { loadSettings, SETTINGS_KEY, type GameSettings } from '../settings';
+import { save } from '../store';
 import { BackButton, Sheet, TopBar } from './common';
-
-export interface GameSettings {
-  size: 9 | 13 | 19;
-  mode: 'ai' | 'local';
-  level: Level;
-  /** 人間の色。random は開始時に決める */
-  color: Color | 'random';
-  handicap: number;
-  komi: number;
-}
-
-export const DEFAULT_SETTINGS: GameSettings = { size: 9, mode: 'ai', level: 'shokyu', color: BLACK, handicap: 0, komi: 6.5 };
 
 function Seg<T extends string | number>({
   value,
@@ -51,7 +39,7 @@ export function Setup({
   /** 中断した対局が残っているか。あれば、はじめる前に破棄してよいか確認する。 */
   hasSaved?: boolean;
 }) {
-  const [s, setS] = useState<GameSettings>(() => ({ ...DEFAULT_SETTINGS, ...load<Partial<GameSettings>>('gonomichi:settings', {}) }));
+  const [s, setS] = useState<GameSettings>(loadSettings);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const set = <K extends keyof GameSettings>(k: K, v: GameSettings[K]) => setS((p) => ({ ...p, [k]: v }));
   const t = ja.setup;
@@ -166,7 +154,7 @@ export function Setup({
 
   function doStart() {
     const final = { ...s, handicap, komi };
-    save('gonomichi:settings', final);
+    save(SETTINGS_KEY, final);
     onStart(final);
   }
 }

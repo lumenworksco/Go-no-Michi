@@ -6,10 +6,10 @@ import { requestMove, requestHint, requestDead, cancelAi, cancelHint } from '../
 import { ja } from '../ja';
 import { playStone, playCapture, playChime, vibrate } from '../audio';
 import { moveMark } from '../notation';
-import { addRecord, clearSavedGame, storeSavedGame, type SavedGame } from '../save';
+import { addRecord, persistProgress, type SavedGame } from '../save';
 import { Board, type FadingStone } from './Board';
 import { BackButton, Dots, Sheet, StoneIcon, TopActions, TopBar, useToast } from './common';
-import type { GameSettings } from './Setup';
+import type { GameSettings } from '../settings';
 
 interface Snap {
   state: GameState;
@@ -53,7 +53,7 @@ export function GameScreen({
 }) {
   const human: Color = useMemo(
     () => resume?.human ?? (settings.color === 'random' ? (Math.random() < 0.5 ? BLACK : WHITE) : settings.color),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 人間の色は、色の設定が変わったときだけ決め直す（resume は初回だけ使う）
     [settings.color],
   );
   const isAi = settings.mode === 'ai';
@@ -79,6 +79,7 @@ export function GameScreen({
   const token = useRef(0);
   const hintToken = useRef(0);
   const recorded = useRef(false);
+  const previewHinted = useRef(false);
   const toast = useToast();
 
   const over = isOver(cur);
@@ -89,8 +90,7 @@ export function GameScreen({
 
   // ---- 自動保存（中断して、ホームの「続きから」で再開できる） ----------------
   useEffect(() => {
-    if (phase === 'done') clearSavedGame();
-    else if (hist.length > 1) storeSavedGame({ settings, human, moves: hist.slice(1).map((h) => h.move) });
+    persistProgress({ settings, human, moves: hist.slice(1).map((h) => h.move) }, phase === 'done');
   }, [hist, phase, settings, human]);
 
   // ---- 着手 ----------------------------------------------------------
@@ -178,7 +178,7 @@ export function GameScreen({
       token.current++;
       cancelAi();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 局面（hist）か投了が変わったときだけ考え直す。cur などは hist から決まるので依存に入れない
   }, [hist, resigned]);
 
   // ---- 死に石の推定 ---------------------------------------------------------
@@ -199,7 +199,7 @@ export function GameScreen({
       if (!settled) cancelAi();
       setEstimating(false);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 終局したとき・手数が変わったとき（待った後など）にだけ推定しなおす
   }, [over, hist.length, resigned]);
 
   useEffect(
@@ -324,19 +324,25 @@ export function GameScreen({
     phase === 'scoring' ? ja.game.scoring : view.moveNo === 0 ? ja.game.moveNo(0) : ja.game.moveLabel(view.moveNo, markOf(view, viewIdx));
 
   // キーボード操作（デスクトップ）。常に最新のハンドラを ref 経由で呼ぶ。
+  const passArmed = useRef(0);
   const kb = useRef<(e: KeyboardEvent) => void>(() => {});
   kb.current = (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key === 'Escape') {
-      if (confirm) setConfirm(null);
-      else if (showResult) setShowResult(false);
-      return;
-    }
+    // Esc で閉じる動作は、シート（common.tsx の Sheet）が受け持つ
     if (confirm || (showResult && phase === 'done')) return;
     const k = e.key.toLowerCase();
     if (phase === 'play') {
-      if (k === 'p' && myTurn) doPass();
-      else if (k === 'u') undo();
+      if (k === 'p' && myTurn) {
+        // うっかり押してもパスしないよう、2 秒以内にもう一度押したときだけパスする
+        const now = Date.now();
+        if (now - passArmed.current < 2000) {
+          passArmed.current = 0;
+          doPass();
+        } else {
+          passArmed.current = now;
+          toast.show(ja.game.passAgain, 2000);
+        }
+      } else if (k === 'u') undo();
       else if (k === 'h') askHint();
     } else if (phase === 'done') {
       if (e.key === 'ArrowLeft') stepReview(viewIdx - 1);
@@ -444,6 +450,13 @@ export function GameScreen({
           interactive={myTurn || phase === 'scoring'}
           canPlay={phase === 'scoring' ? () => false : (i) => cur.board[i] === EMPTY && i !== cur.ko}
           onPoint={onPoint}
+          confirmTouch={phase === 'play' && view.size > 9}
+          onPreview={() => {
+            if (!previewHinted.current) {
+              previewHinted.current = true;
+              toast.show(ja.game.previewTap, 2200);
+            }
+          }}
           fading={fading}
           dead={over && atEnd ? dead : undefined}
           owner={over && atEnd ? score?.owner : undefined}

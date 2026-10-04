@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { groupAt, WHITE, BLACK } from '../engine/board';
 import { playMove, passMove } from '../engine/game';
-import { PUZZLES, puzzleSolver, puzzleState, puzzleSpec, WINDOW } from './problems';
-import { isCaptured, inWindow } from './solver';
+import { PUZZLES, puzzleState, puzzleSpec, WINDOW } from './problems';
+import { isCaptured, inWindow, puzzleSolver } from './solver';
 
 describe('詰碁の出題', () => {
   for (const p of PUZZLES) {

@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt', // 更新は src/pwa.ts がホームで知らせ、押されたときだけ入れかえる
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'ごのみち',
@@ -33,5 +33,11 @@ export default defineConfig({
   ],
   worker: { format: 'es' },
   // e2e/ は Playwright（npm run e2e）が使う。vitest（npm test）はユニットテストだけを見る。
-  test: { environment: 'node', exclude: ['node_modules/**', 'dist/**', 'e2e/**'] },
+  test: {
+    environment: 'node',
+    exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
+    testTimeout: 30_000, // AI の自己対戦は、遅い CI やカバレッジ計測の中でも終わるように
+    // npm run coverage：画面（ui/）は e2e で確かめるので、ここでは数えない
+    coverage: { provider: 'v8', include: ['src/**/*.ts'], exclude: ['src/**/*.test.ts', 'src/testStorage.ts', 'src/ai/worker.ts', 'src/main.tsx', 'src/pwa.ts'] },
+  },
 });

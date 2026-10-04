@@ -1,5 +1,7 @@
 // SNS カード用の画像 (1200×630) を作る。ヘッドレス Chromium で HTML を描画してスクリーンショットする。
 //   node scripts/make-og-image.mjs
+// 日本語の明朝体（Hiragino Mincho ProN / Yu Mincho / Noto Serif JP）がこのマシンに入っている必要がある。
+// 入っていないと別のフォントで描かれるので、画像を作りなおす前に確認すること。
 import { writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 

@@ -28,7 +28,10 @@ export function neighbors(size: number): number[][] {
   return t;
 }
 
-// --- アロケーションを避けるための作業用バッファ（単一スレッド前提） ---
+// --- アロケーションを避けるための作業用バッファ ---
+// モジュール内で共有しているので、flood() の結果（grp / groupSize / groupLibs）は、
+// 次に flood() を呼ぶまでの間しか有効ではない。呼び出しは同期的で、一つのスレッドの中だけで使うこと
+// （ワーカーとメインスレッドはそれぞれ別のモジュールのコピーを持つので、ぶつからない）。
 let mark = new Int32Array(0);
 let libMark = new Int32Array(0);
 let stack = new Int16Array(0);

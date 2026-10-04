@@ -393,7 +393,7 @@ p {
   fill: #3b2810;
 }
 .coord {
-  font-size: 0.4px;
+  font-size: 0.46px;
   fill: rgba(59, 40, 16, 0.62);
   text-anchor: middle;
   dominant-baseline: central;
@@ -455,6 +455,10 @@ p {
 }
 .ghost {
   opacity: 0.55;
+}
+.ghost.pending {
+  opacity: 0.85;
+  filter: drop-shadow(0 0 0.08px #ff6a4d);
 }
 .fade-out {
   animation: fade-out 0.38s ease-out forwards;
@@ -1107,8 +1111,9 @@ p {
 }
 .discard {
   position: absolute;
-  right: 12px;
-  top: 12px;
+  right: 6px;
+  top: 6px;
+  padding: 12px 14px;
   color: rgba(35, 23, 5, 0.62);
   margin: 0;
 }
@@ -1192,4 +1197,20 @@ p {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.update-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 10px 10px 18px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid rgba(227, 192, 127, 0.4);
+  font-size: 14px;
+}
+.update-card .act {
+  height: 44px;
+  padding: 0 18px;
 }

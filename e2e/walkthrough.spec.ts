@@ -32,7 +32,8 @@ test('コンピュータと対局し、終局して棋譜を扱える', async ({
 
   const tap = boardTapper(page, 9);
   await tap(4, 4);
-  await page.waitForTimeout(2500); // コンピュータの一手
+  // コンピュータの一手を待つ（石が 2 つになる）
+  await expect(page.locator('g.stone')).toHaveCount(2, { timeout: 20_000 });
 
   // 投了して、すぐ結果が出ることを確認する（終局の採点フローは詰碁テストと重複するので省く）
   await page.getByRole('button', { name: 'とうりょう' }).click();
@@ -97,6 +98,7 @@ test('詰碁：まちがえると案内が出て、ヒント通りに打つと�
   await expectNoKanji(page);
 
   await page.locator('.pcard').first().click();
+  await expect(page.locator('.goal')).toBeVisible(); // 詰碁の画面は開くときに読みこむので、出るまで待つ
   await expect(page.locator('svg.board-svg')).toBeVisible();
   await expectNoKanji(page);
 

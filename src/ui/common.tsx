@@ -99,6 +99,16 @@ export function useToast() {
 }
 
 export function Sheet({ children, onClose }: { children: ReactNode; onClose?: () => void }) {
+  // Esc で閉じる。常に最新の onClose を呼ぶ。
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const f = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeRef.current?.();
+    };
+    window.addEventListener('keydown', f);
+    return () => window.removeEventListener('keydown', f);
+  }, []);
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">

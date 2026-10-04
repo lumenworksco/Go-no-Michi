@@ -1,26 +1,23 @@
-import { useEffect, useState } from 'react';
-import { load, save } from './store';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Home } from './ui/Home';
 import { Rules } from './ui/Rules';
-import { clearSavedGame, loadSavedGame } from './save';
-import { Setup, type GameSettings } from './ui/Setup';
+import { clearSavedGame, loadSavedGame, loadSolved, storeSolved, type SavedGame } from './save';
+import { Setup } from './ui/Setup';
 import { GameScreen } from './ui/GameScreen';
-import { TsumegoList, TsumegoPlay } from './ui/Tsumego';
-import { PUZZLES, type Puzzle } from './tsumego/problems';
-import type { SavedGame } from './save';
+import { PUZZLES } from './tsumego/problems';
+import { applyUpdate, useUpdateAvailable } from './pwa';
+import { HOME, routeFromHistory, type Route } from './route';
 
-type Route =
-  | { name: 'home' }
-  | { name: 'setup' }
-  | { name: 'rules' }
-  | { name: 'game'; settings: GameSettings; run: number; resume?: SavedGame | null }
-  | { name: 'tsumegoList' }
-  | { name: 'tsumego'; puzzle: Puzzle };
+// 詰碁の画面と探索器は、開いたときに読みこむ（最初の読みこみを軽くする）。オフラインでも使えるよう、
+// これらのファイルもサービスワーカーが先にキャッシュしている。
+const TsumegoList = lazy(() => import('./ui/Tsumego').then((m) => ({ default: m.TsumegoList })));
+const TsumegoPlay = lazy(() => import('./ui/Tsumego').then((m) => ({ default: m.TsumegoPlay })));
 
 export function App() {
-  const [route, setRoute] = useState<Route>({ name: 'home' });
+  const [route, setRoute] = useState<Route>(HOME);
   const [saved, setSaved] = useState<SavedGame | null>(() => loadSavedGame());
-  const [solved, setSolved] = useState<number[]>(() => load<number[]>('gonomichi:tsumego', []));
+  const [solved, setSolved] = useState<number[]>(loadSolved);
+  const updateAvailable = useUpdateAvailable();
 
   // 起動（読みこみなおし含む）のたびに、戻る履歴の起点をホームにそろえる。
   // このアプリは常にホームから始まるので、前回の深い画面が履歴に残っていても無視する。
@@ -39,7 +36,18 @@ export function App() {
 
   // 端末／ブラウザの「戻る」を唯一の遷移元にする。履歴に積んだ内容をそのまま読み戻す。
   useEffect(() => {
-    const onPop = (e: PopStateEvent) => setRoute((e.state as Route | null) ?? { name: 'home' });
+    const onPop = (e: PopStateEvent) => {
+      const r = routeFromHistory(e.state);
+      // 復元できない状態（対局など）に着いたときは、その履歴の項目もホームに直しておく
+      if (r.name === 'home' && (e.state as Route | null)?.name !== 'home') {
+        try {
+          history.replaceState(HOME, '');
+        } catch {
+          /* ignore */
+        }
+      }
+      setRoute(r);
+    };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
@@ -75,67 +83,74 @@ export function App() {
     setSolved((s) => {
       if (s.includes(id)) return s;
       const n = [...s, id];
-      save('gonomichi:tsumego', n);
+      storeSolved(n);
       return n;
     });
 
-  switch (route.name) {
-    case 'home':
-      return (
-        <Home
-          onPlay={() => go({ name: 'setup' })}
-          onTsumego={() => go({ name: 'tsumegoList' })}
-          onRules={() => go({ name: 'rules' })}
-          onResume={() => saved && go({ name: 'game', settings: saved.settings, run: 0, resume: saved })}
-          onDiscard={() => {
-            clearSavedGame();
-            setSaved(null);
-          }}
-          saved={saved}
-          solved={solved.length}
-        />
-      );
-    case 'rules':
-      return <Rules onBack={back} />;
-    case 'setup':
-      return (
-        <Setup
-          hasSaved={!!saved}
-          onBack={back}
-          onStart={(settings) => {
-            clearSavedGame(); // 新しい対局を始めたら、中断していた対局は破棄
-            setSaved(null);
-            // 対局設定の画面は使い捨てなので、戻る履歴には積まず置きかえる。
-            // こうすると対局を終えたときの「戻る」は、設定画面を飛ばして直接ホームに戻る。
-            replace({ name: 'game', settings, run: 0, resume: null });
-          }}
-        />
-      );
-    case 'game':
-      return (
-        <GameScreen
-          key={route.run}
-          settings={route.settings}
-          resume={route.resume}
-          onExit={back}
-          onRematch={() => replace({ ...route, run: route.run + 1, resume: null })}
-        />
-      );
-    case 'tsumegoList':
-      return <TsumegoList solved={solved} onPick={(puzzle) => go({ name: 'tsumego', puzzle })} onBack={back} />;
-    case 'tsumego': {
-      const i = PUZZLES.findIndex((p) => p.id === route.puzzle.id);
-      const next = PUZZLES[i + 1];
-      return (
-        <TsumegoPlay
-          key={route.puzzle.id}
-          puzzle={route.puzzle}
-          onSolved={markSolved}
-          onBack={back}
-          onNext={() => next && replace({ name: 'tsumego', puzzle: next })}
-          hasNext={!!next}
-        />
-      );
+  const screen = (() => {
+    switch (route.name) {
+      case 'home':
+        return (
+          <Home
+            onPlay={() => go({ name: 'setup' })}
+            onTsumego={() => go({ name: 'tsumegoList' })}
+            onRules={() => go({ name: 'rules' })}
+            onResume={() => saved && go({ name: 'game', settings: saved.settings, run: 0, resume: saved })}
+            onDiscard={() => {
+              clearSavedGame();
+              setSaved(null);
+            }}
+            saved={saved}
+            solved={solved.length}
+            updateAvailable={updateAvailable}
+            onUpdate={applyUpdate}
+          />
+        );
+      case 'rules':
+        return <Rules onBack={back} />;
+      case 'setup':
+        return (
+          <Setup
+            hasSaved={!!saved}
+            onBack={back}
+            onStart={(settings) => {
+              clearSavedGame(); // 新しい対局を始めたら、中断していた対局は破棄
+              setSaved(null);
+              // 対局設定の画面は使い捨てなので、戻る履歴には積まず置きかえる。
+              // こうすると対局を終えたときの「戻る」は、設定画面を飛ばして直接ホームに戻る。
+              replace({ name: 'game', settings, run: 0, resume: null });
+            }}
+          />
+        );
+      case 'game':
+        return (
+          <GameScreen
+            key={route.run}
+            settings={route.settings}
+            resume={route.resume}
+            onExit={back}
+            onRematch={() => replace({ ...route, run: route.run + 1, resume: null })}
+          />
+        );
+      case 'tsumegoList':
+        return <TsumegoList solved={solved} onPick={(puzzle) => go({ name: 'tsumego', puzzle })} onBack={back} />;
+      case 'tsumego': {
+        const i = PUZZLES.findIndex((p) => p.id === route.puzzle.id);
+        const next = PUZZLES[i + 1];
+        return (
+          <TsumegoPlay
+            key={route.puzzle.id}
+            puzzle={route.puzzle}
+            onSolved={markSolved}
+            onBack={back}
+            onNext={() => next && replace({ name: 'tsumego', puzzle: next })}
+            hasNext={!!next}
+          />
+        );
+      }
+
     }
-  }
+  })();
+
+  return <Suspense fallback={null}>{screen}</Suspense>;
 }

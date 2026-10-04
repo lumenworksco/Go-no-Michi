@@ -2,7 +2,7 @@
 import { load, save } from './store';
 
 let ctx: AudioContext | null = null;
-let enabled = load<boolean>('gonomichi:sound', true);
+let enabled = load<boolean>('gonomichi:sound', true, (v): v is boolean => typeof v === 'boolean');
 let noise: AudioBuffer | null = null;
 
 export const isSoundOn = () => enabled;

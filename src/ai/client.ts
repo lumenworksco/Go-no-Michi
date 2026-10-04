@@ -10,12 +10,21 @@ type Msg = WorkerIn extends infer T ? (T extends { id: number } ? Omit<T, 'id'> 
 
 let nextId = 1;
 
-function fallback(msg: Msg): WorkerOut {
-  if (msg.type === 'move') {
-    const r = chooseMove(msg.req);
-    return { id: 0, type: 'move', move: r.move, winrate: r.winrate };
+/**
+ * メインスレッドで直接計算する。ここでも失敗したら、パス（死に石なし）を返して必ず応答する。
+ * 応答しないと、画面が「かんがえちゅう」のまま二度と動かなくなってしまう。
+ */
+export function fallback(msg: Msg): WorkerOut {
+  try {
+    if (msg.type === 'move') {
+      const r = chooseMove(msg.req);
+      return { id: 0, type: 'move', move: r.move, winrate: r.winrate };
+    }
+    return { id: 0, type: 'dead', dead: estimateDead(msg.board, msg.size, msg.toPlay) };
+  } catch (err) {
+    console.error(err);
+    return msg.type === 'move' ? { id: 0, type: 'move', move: -1, winrate: 0.5 } : { id: 0, type: 'dead', dead: [] };
   }
-  return { id: 0, type: 'dead', dead: estimateDead(msg.board, msg.size, msg.toPlay) };
 }
 
 class Channel {
@@ -55,7 +64,8 @@ class Channel {
 
   send(msg: Msg): Promise<WorkerOut> {
     const w = this.get();
-    if (!w) return Promise.resolve(fallback(msg));
+    // 直接計算は画面を止めるので、「かんがえちゅう」が一度描画されてから始める
+    if (!w) return new Promise((resolve) => setTimeout(() => resolve(fallback(msg)), 30));
     return new Promise((resolve) => {
       const id = nextId++;
       this.pending.set(id, { resolve, msg });

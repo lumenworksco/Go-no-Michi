@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactElement } from 'react';
 import { BLACK, WHITE, EMPTY, type Color } from '../engine/board';
 import type { Window } from '../tsumego/solver';
 import { ja } from '../ja';
@@ -20,6 +20,14 @@ interface Props {
   /** 置ける点かどうか。false ならゴーストを出さない */
   canPlay?: (idx: number) => boolean;
   onPoint?: (idx: number) => void;
+  /**
+   * 指でさわるとき、1 回目のタップは置く場所の確認（うすい石を出す）だけにして、同じ点をもう一度
+   * タップしたときに置く。大きな盤では 1 点が指より小さく、まちがえて置きやすいため。
+   * マウスは今までどおり 1 クリックで置く。
+   */
+  confirmTouch?: boolean;
+  /** 確認のうすい石を出したとき */
+  onPreview?: () => void;
   fading?: FadingStone[];
   /** 死に石（終局の確認中） */
   dead?: ReadonlySet<number>;
@@ -47,6 +55,8 @@ export function Board({
   interactive = false,
   canPlay,
   onPoint,
+  confirmTouch = false,
+  onPreview,
   fading = [],
   dead,
   owner,
@@ -66,7 +76,15 @@ export function Board({
 
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState(-1);
+  const [pending, setPending] = useState(-1);
   const pressed = useRef(false);
+  // 同じ画面に碁盤が複数あっても（詰碁の一覧など）、グラデーションの id がぶつからないようにする
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const gB = `gB${uid}`;
+  const gW = `gW${uid}`;
+
+  // 盤面が変わる・操作できなくなったら、確認中の石は消す
+  useEffect(() => setPending(-1), [board, interactive, confirmTouch]);
 
   const pointAt = (e: React.PointerEvent): number => {
     const el = svgRef.current;
@@ -119,6 +137,8 @@ export function Board({
     }
   }
 
+  // 石と地の層。ポインタを動かすたびに作りなおさないよう、盤面などが変わったときだけ作る
+  const { stones, marks } = useMemo(() => {
   const stones: ReactElement[] = [];
   const marks: ReactElement[] = [];
   for (let i = 0; i < board.length; i++) {
@@ -138,7 +158,7 @@ export function Board({
       <g key={isLast && animateLast ? `${i}-${moveKey}` : `${i}`} transform={`translate(${x} ${y})`}>
         <circle cx={0.05} cy={0.08} r={R} className="shadow" />
         <g className={cls}>
-          <circle r={R} fill={c === BLACK ? 'url(#gB)' : 'url(#gW)'} className="body" />
+          <circle r={R} fill={c === BLACK ? `url(#${gB})` : `url(#${gW})`} className="body" />
           {c === WHITE && <circle r={R} fill="none" className="rim" />}
         </g>
         {isDead && <path d="M-0.2 -0.2L0.2 0.2M0.2 -0.2L-0.2 0.2" className={c === BLACK ? 'xmark w' : 'xmark b'} />}
@@ -148,10 +168,14 @@ export function Board({
     const o = owner?.[i] ?? 0;
     if (o) marks.push(<rect key={`t${i}`} x={x - 0.17} y={y - 0.17} width={0.34} height={0.34} className={o === BLACK ? 'terr b' : 'terr w'} />);
   }
+  return { stones, marks };
+  }, [board, size, last, animateLast, moveKey, dead, owner, v.x0, v.x1, v.y0, v.y1, gB, gW]);
 
-  const showGhost = interactive && hover >= 0 && board[hover] === EMPTY && (canPlay ? canPlay(hover) : true);
-  const gx = hover % size;
-  const gy = (hover / size) | 0;
+  // 指を置いている間はそこ、離したあとは確認中の点にうすい石を出す
+  const ghostAt = hover >= 0 ? hover : pending;
+  const showGhost = interactive && ghostAt >= 0 && board[ghostAt] === EMPTY && (canPlay ? canPlay(ghostAt) : true);
+  const gx = ghostAt % size;
+  const gy = (ghostAt / size) | 0;
 
   return (
     <div className={`board-wrap${full ? '' : ' cropped'}`} style={{ aspectRatio: `${vb.w} / ${vb.h}`, ['--ar' as string]: vb.w / vb.h }}>
@@ -176,8 +200,21 @@ export function Board({
           const idx = pointAt(e);
           const wasPressed = pressed.current;
           pressed.current = false;
-          if (e.pointerType !== 'mouse') setHover(-1);
-          if (wasPressed && idx >= 0) onPoint?.(idx);
+          const touchLike = e.pointerType !== 'mouse';
+          if (touchLike) setHover(-1);
+          if (!wasPressed || idx < 0) return;
+          if (confirmTouch && touchLike) {
+            if (idx === pending) {
+              setPending(-1);
+              onPoint?.(idx);
+            } else if (board[idx] === EMPTY && (canPlay ? canPlay(idx) : true)) {
+              setPending(idx);
+              onPreview?.();
+            } else {
+              setPending(-1);
+              onPoint?.(idx); // 置けない点：理由の案内（コウなど）は呼び出し側が出す
+            }
+          } else onPoint?.(idx);
         }}
         onPointerCancel={() => {
           pressed.current = false;
@@ -188,12 +225,12 @@ export function Board({
         }}
       >
         <defs>
-          <radialGradient id="gB" cx="0.34" cy="0.3" r="0.8">
+          <radialGradient id={gB} cx="0.34" cy="0.3" r="0.8">
             <stop offset="0" stopColor="#5b5d63" />
             <stop offset="0.35" stopColor="#25262a" />
             <stop offset="1" stopColor="#050506" />
           </radialGradient>
-          <radialGradient id="gW" cx="0.36" cy="0.3" r="0.85">
+          <radialGradient id={gW} cx="0.36" cy="0.3" r="0.85">
             <stop offset="0" stopColor="#ffffff" />
             <stop offset="0.55" stopColor="#efece5" />
             <stop offset="1" stopColor="#b9b4a8" />
@@ -205,7 +242,7 @@ export function Board({
         {koMark(ko, size, v)}
         {fading.map((f) => (
           <g key={f.key} transform={`translate(${f.idx % size} ${(f.idx / size) | 0})`} className="fade-out" pointerEvents="none">
-            <circle r={R} fill={f.color === BLACK ? 'url(#gB)' : 'url(#gW)'} />
+            <circle r={R} fill={f.color === BLACK ? `url(#${gB})` : `url(#${gW})`} />
           </g>
         ))}
         {stones}
@@ -215,8 +252,8 @@ export function Board({
         ))}
         {hint >= 0 && <circle cx={hint % size} cy={(hint / size) | 0} r={0.32} className="hint" />}
         {showGhost && (
-          <g transform={`translate(${gx} ${gy})`} pointerEvents="none" className="ghost">
-            <circle r={R} fill={ghostColor === BLACK ? 'url(#gB)' : 'url(#gW)'} />
+          <g transform={`translate(${gx} ${gy})`} pointerEvents="none" className={pending >= 0 && hover < 0 ? 'ghost pending' : 'ghost'}>
+            <circle r={R} fill={ghostColor === BLACK ? `url(#${gB})` : `url(#${gW})`} />
           </g>
         )}
       </svg>

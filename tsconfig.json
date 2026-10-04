@@ -10,7 +10,7 @@
     "noUnusedParameters": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "vite-plugin-pwa/client", "node"]
   },
-  "include": ["src"]
+  "include": ["src", "e2e", "scripts/*.ts", "vite.config.ts", "playwright.config.ts"]
 }
