@@ -212,6 +212,10 @@ export const ja = {
     reviewTitle: 'きふを みる',
     stopped: (n: number) => `${n}てめの てが おけないため、その まえまで ひょうじします`,
     noMoves: 'うった てが ありません',
+    variations: 'へんか',
+    variationsHelp: 'ここから わかれる てじゅんが あります。 えらぶと、その てじゅんで すすみます',
+    mainLine: 'ほんすじ',
+    comment: 'コメント',
   },
 
   settings: {

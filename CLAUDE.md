@@ -15,8 +15,8 @@ picking the project back up.
 Feature-complete for a v1 and hardened: rules engine, AI, 16 tsumego puzzles (all proven
 solvable by exhaustive search, not just authored), full Japanese-beginner UI, responsive
 phone↔desktop layout, installable offline PWA, SGF export, game review, error boundary, and an
-e2e suite covering phone/desktop × Chromium/WebKit. 182 unit tests and 35 e2e tests (×4 browser
-projects = 140 runs; 11 are skipped by design: offline-reload on WebKit, touch-only on desktop, keyboard-only on mobile, Chromium-only Tab navigation), all green locally and in CI.
+e2e suite covering phone/desktop × Chromium/WebKit. 189 unit tests and 36 e2e tests (×4 browser
+projects = 144 runs; 11 are skipped by design: offline-reload on WebKit, touch-only on desktop, keyboard-only on mobile, Chromium-only Tab navigation), all green locally and in CI.
 
 **Open items / known gaps** (not blocking, just not done):
 - Real iOS and Android devices (including offline use) and the Japanese copy have been checked by the owner
@@ -67,7 +67,7 @@ To check a change against the live site instead of a local build:
 - `index.html` metadata: URL comes from `.env` (`VITE_SITE_URL`); the SEO block between `kanji-ok` comments may contain kanji (invisible metadata) and is exempt from `ja.test.ts`.
 - `scripts/gen-puzzles.ts` — random search + solver proof for new tsumego (copy output into `problems.ts`, then `npm test`).
 - `src/ja.ts` — all UI strings. The whole UI is **hiragana + katakana only (no kanji)**, with spaces between words, for beginners. `src/ja.test.ts` fails if a kanji appears in the strings or UI code (scans `src/ui/*`, `src/App.tsx`, `src/notation.ts`, `src/audio.ts`, `src/rulesDiagrams.ts`, `index.html`, `vite.config.ts` — add a new file there if it can contain user-visible text). Board axes use digits; moves read like `3の4`. The app is called ごのみち.
-- SGF: `engine/sgf.ts` writes, `engine/sgfParse.ts` reads (first game, first variation, `AB`/`AW` incl. `aa:cc` ranges, escapes, `CA[...]` legacy encodings via `decodeSgf`; 9/13/19 only), `engine/replay.ts` turns a parsed game into positions (colours as the file says, simple ko ignored), `ui/OpenSgf.tsx` (file picker or paste) → `ui/Review.tsx` (route `review`, never restored from history). Entry: Home "きふを ひらく".
+- SGF: `engine/sgf.ts` writes, `engine/sgfParse.ts` reads (first game as a tree `SgfNode` — variations and `C[]` comments; `moves` is the main line; `AB`/`AW` incl. `aa:cc` ranges, escapes, `CA[...]` legacy encodings via `decodeSgf`; 9/13/19 only), `engine/replay.ts` turns a parsed game into positions along a chosen path (`choices`: node index → branch; colours as the file says, simple ko ignored), `ui/OpenSgf.tsx` (file picker or paste) → `ui/Review.tsx` (route `review`, never restored from history). Entry: Home "きふを ひらく".
 - `src/store.ts` / `src/settings.ts` / `src/save.ts` — everything in localStorage goes through these, and **every read is validated**
   (`load()` takes a type guard; `parseSettings`, `parseSavedGame`, `loadSolved`, `loadRecord`), so corrupt or old data falls back to
   defaults instead of crashing. Saved games are a list under `gonomichi:saves` (`SavedGame` has `id` + `updatedAt`; the old single `gonomichi:save` key is migrated on first load). `persistProgress()` is the autosave rule (that game's slot is deleted when it is finished *or* undone back to move 0).

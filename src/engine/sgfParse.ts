@@ -1,4 +1,5 @@
-// 棋譜（SGF）の読みこみ。最初の対局の本筋（最初の変化）だけを読み、盤の大きさ・コミ・置き石・着手・結果を取り出す。
+// 棋譜（SGF）の読みこみ。最初の対局を、変化（枝わかれ）もふくめた木として読み、盤の大きさ・コミ・置き石・着手・
+// コメント・結果を取り出す。
 // 9・13・19 路だけに対応する（このアプリの盤の大きさ）。
 import { BLACK, WHITE, type Color } from './board';
 
@@ -8,6 +9,14 @@ export interface SgfMove {
   point: number;
 }
 
+/** 棋譜の木の 1 つの節。root は着手なし。1 つの節に 1 つの着手だけ。 */
+export interface SgfNode {
+  move: SgfMove | null;
+  comment?: string;
+  /** 次の手の候補。先頭が本筋、2 つめ以降が変化。 */
+  children: SgfNode[];
+}
+
 export interface ParsedSgf {
   size: 9 | 13 | 19;
   komi: number;
@@ -15,7 +24,10 @@ export interface ParsedSgf {
   handicap: number;
   setupBlack: number[];
   setupWhite: number[];
+  /** 本筋（いつも先頭の変化をたどった手順）。 */
   moves: SgfMove[];
+  /** 変化もふくめた木。 */
+  tree: SgfNode;
   /** 例: 'B+3.5'、'W+R'、'0' */
   result?: string;
   blackName?: string;
@@ -83,30 +95,30 @@ function readNode(r: Reader): Node {
   }
 }
 
-/** ( ... ) を 1 つ読み、最初の変化をたどった着手の列を返す。ほかの変化は読みとばす。 */
-function readTree(r: Reader, depth = 0): Node[] {
+interface GameTree {
+  nodes: Node[];
+  children: GameTree[];
+}
+
+/** ( 節の列 { ( 変化 ) } ) を 1 つ読む。 */
+function readTree(r: Reader, depth = 0): GameTree {
   if (depth > 200) throw new Error('format');
   r.skipSpace();
   if (r.peek() !== '(') throw new Error('format');
   r.i++;
-  const nodes: Node[] = [];
+  const tree: GameTree = { nodes: [], children: [] };
   for (;;) {
     r.skipSpace();
     const c = r.peek();
-    if (c === ';') nodes.push(readNode(r));
-    else if (c === '(') {
-      if (!nodes.length) throw new Error('format');
-      const branch = readTree(r, depth + 1);
-      nodes.push(...branch);
-      // 2 つめ以降の変化は使わない
-      for (;;) {
-        r.skipSpace();
-        if (r.peek() !== '(') break;
-        readTree(r, depth + 1);
-      }
+    if (c === ';') {
+      if (tree.children.length) throw new Error('format'); // 変化のあとに節はつづかない
+      tree.nodes.push(readNode(r));
+    } else if (c === '(') {
+      if (!tree.nodes.length) throw new Error('format');
+      tree.children.push(readTree(r, depth + 1));
     } else if (c === ')') {
       r.i++;
-      return nodes;
+      return tree;
     } else throw new Error('format');
   }
 }
@@ -141,19 +153,56 @@ function points(values: string[], size: number): number[] | null {
   return out;
 }
 
+/** 1 つの節の着手（B / W）を取り出す。座標がおかしければ null。 */
+function nodeMoves(node: Node, size: number): SgfMove[] | null {
+  const out: SgfMove[] = [];
+  for (const [key, color] of [['B', BLACK], ['W', WHITE]] as const) {
+    const v = node.get(key)?.[0];
+    if (v === undefined) continue;
+    const p = point(v, size);
+    if (p === null) return null;
+    out.push({ color, point: p });
+  }
+  return out;
+}
+
+/** tree の節の列を parent の下につなぎ、その先に変化をつなぐ。座標がおかしければ false。 */
+function attach(tree: GameTree, parent: SgfNode, size: number, isRoot: boolean): boolean {
+  let last = parent;
+  for (let i = 0; i < tree.nodes.length; i++) {
+    const node = tree.nodes[i];
+    const moves = nodeMoves(node, size);
+    if (!moves) return false;
+    const comment = isRoot && i === 0 ? undefined : node.get('C')?.[0];
+    if (moves.length === 0) {
+      // 着手のない節（コメントだけなど）は、直前の節のコメントに足す
+      if (comment) last.comment = last.comment ? `${last.comment}\n${comment}` : comment;
+      continue;
+    }
+    moves.forEach((move, j) => {
+      const n: SgfNode = { move, children: [] };
+      if (j === 0 && comment) n.comment = comment;
+      last.children.push(n);
+      last = n;
+    });
+  }
+  for (const child of tree.children) if (!attach(child, last, size, false)) return false;
+  return true;
+}
+
 export function parseSgf(text: string): SgfResult {
-  const src = text.replace(/^﻿/, '').trim();
+  const src = text.replace(/^\uFEFF/, '').trim();
   if (!src) return { ok: false, error: 'empty' };
   const start = src.indexOf('(');
   if (start < 0) return { ok: false, error: 'format' };
-  let nodes: Node[];
+  let gt: GameTree;
   try {
-    nodes = readTree(new Reader(src.slice(start)));
+    gt = readTree(new Reader(src.slice(start)));
   } catch {
     return { ok: false, error: 'format' };
   }
-  if (!nodes.length) return { ok: false, error: 'format' };
-  const root = nodes[0];
+  if (!gt.nodes.length) return { ok: false, error: 'format' };
+  const root = gt.nodes[0];
   const one = (k: string) => root.get(k)?.[0];
 
   // 盤の大きさ（SZ[19] か SZ[9:9]。正方形だけ）
@@ -171,18 +220,15 @@ export function parseSgf(text: string): SgfResult {
   const setupWhite = points(root.get('AW') ?? [], size);
   if (!setupBlack || !setupWhite) return { ok: false, error: 'format' };
 
-  const moves: SgfMove[] = [];
-  for (const node of nodes) {
-    for (const [key, color] of [['B', BLACK], ['W', WHITE]] as const) {
-      const v = node.get(key)?.[0];
-      if (v === undefined) continue;
-      const p = point(v, size);
-      if (p === null) return { ok: false, error: 'format' };
-      moves.push({ color, point: p });
-    }
-  }
+  const tree: SgfNode = { move: null, children: [] };
+  const rootComment = one('C');
+  if (rootComment) tree.comment = rootComment;
+  if (!attach(gt, tree, size, true)) return { ok: false, error: 'format' };
 
-  const game: ParsedSgf = { size, komi, handicap: Number.isInteger(haRaw) && haRaw >= 0 ? haRaw : 0, setupBlack, setupWhite, moves };
+  const moves: SgfMove[] = [];
+  for (let node = tree.children[0]; node; node = node.children[0]) if (node.move) moves.push(node.move);
+
+  const game: ParsedSgf = { size, komi, handicap: Number.isInteger(haRaw) && haRaw >= 0 ? haRaw : 0, setupBlack, setupWhite, moves, tree };
   const re = one('RE');
   if (re) game.result = re.trim();
   const pb = one('PB');

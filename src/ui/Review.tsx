@@ -9,10 +9,25 @@ import { Arrow, BackButton, StoneIcon, TopBar, TopActions } from './common';
 
 /** 読みこんだ棋譜を、一手ずつ見る画面。 */
 export function Review({ game, onBack }: { game: ParsedSgf; onBack: () => void }) {
-  const replay = useMemo(() => buildReplay(game), [game]);
+  // 変化の分かれ目での選び方（節の番号 → 何番めの候補か）。選びなおしたら、それより先の選択は捨てる。
+  const [choices, setChoices] = useState<Record<number, number>>({});
+  const replay = useMemo(() => buildReplay(game, choices), [game, choices]);
   const last = replay.snaps.length - 1;
-  const [idx, setIdx] = useState(0);
+  const [rawIdx, setIdx] = useState(0);
+  const idx = Math.min(rawIdx, last);
   const step = (to: number) => setIdx(Math.max(0, Math.min(last, to)));
+  const node = replay.line[idx];
+  const forks = node.children.filter((c) => c.move);
+  const chosen = choices[idx] ?? 0;
+  const pickVariation = (k: number) => {
+    setChoices((prev) => {
+      const next: Record<number, number> = {};
+      for (const key of Object.keys(prev)) if (Number(key) < idx) next[Number(key)] = prev[Number(key)];
+      next[idx] = k;
+      return next;
+    });
+    setIdx(idx + 1); // 選んだ変化の 1 手目を表示する
+  };
 
   useEffect(() => {
     const f = (e: KeyboardEvent) => {
@@ -21,6 +36,12 @@ export function Review({ game, onBack }: { game: ParsedSgf; onBack: () => void }
       else if (e.key === 'ArrowRight') step(idx + 1);
       else if (e.key === 'Home') step(0);
       else if (e.key === 'End') step(last);
+      else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && forks.length > 1) {
+        e.preventDefault();
+        const k = (chosen + (e.key === 'ArrowDown' ? 1 : forks.length - 1)) % forks.length;
+        pickVariation(k);
+        setIdx(idx); // 候補を切りかえるだけで、いまの位置にとどまる
+      }
     };
     window.addEventListener('keydown', f);
     return () => window.removeEventListener('keydown', f);
@@ -60,6 +81,24 @@ export function Review({ game, onBack }: { game: ParsedSgf; onBack: () => void }
       <div className="scorebar">
         {result && <div className="result-line">{result}</div>}
         {game.date && <p className="review-meta">{game.date}</p>}
+        {node.comment && (
+          <p className="sgf-comment" aria-label={ja.sgf.comment}>
+            {node.comment}
+          </p>
+        )}
+        {forks.length > 1 && (
+          <div className="variations" role="group" aria-label={ja.sgf.variations}>
+            <small>{ja.sgf.variationsHelp}</small>
+            <div className="chips">
+              {forks.map((c, k) => (
+                <button key={k} className={k === chosen ? 'chip on' : 'chip'} aria-pressed={k === chosen} onClick={() => pickVariation(k)}>
+                  {moveMark(game.size, c.move!.color, c.move!.point)}
+                  {k === 0 ? ` ${ja.sgf.mainLine}` : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {replay.stoppedAt !== null && <p className="review-meta" role="status">{ja.sgf.stopped(replay.stoppedAt)}</p>}
         {last === 0 && replay.stoppedAt === null && <p className="review-meta">{ja.sgf.noMoves}</p>}
         <div className="review" role="group" aria-label={ja.game.review}>

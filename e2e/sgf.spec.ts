@@ -101,3 +101,43 @@ test('対局のきふを保存して、そのファイルをもう一度開け�
   await page.getByRole('button', { name: 'さいごへ' }).click();
   await expect(page.locator('g.stone')).toHaveCount(3);
 });
+
+test('変化（枝わかれ）を選べて、コメントも出る', async ({ page, isMobile }) => {
+  await openSgfScreen(page);
+  const sgf = '(;GM[1]SZ[9]C[ぜんたいの コメント];B[ee]C[1手目の コメント](;W[cc];B[gg])(;W[gc];B[cg];W[ge];B[ce]))';
+  await page.locator('textarea.sgf-text').fill(sgf);
+  await page.getByRole('button', { name: 'ひらく' }).click();
+
+  await expect(page.locator('.sgf-comment')).toContainText('ぜんたいの コメント');
+  await expect(page.locator('.variations')).toHaveCount(0); // 最初の節では分かれていない
+  await expect(page.locator('.review-pos')).toHaveText('0 / 3'); // 本筋は 3 手
+
+  await page.getByRole('button', { name: 'ひとつ すすむ' }).click();
+  await expect(page.locator('.sgf-comment')).toContainText('1手目の コメント');
+  const group = page.getByRole('group', { name: 'へんか' });
+  await expect(group).toBeVisible();
+  await expect(group.getByRole('button')).toHaveCount(2);
+  await expect(group.getByRole('button').first()).toContainText('ほんすじ');
+  await expect(group.getByRole('button').first()).toHaveAttribute('aria-pressed', 'true');
+
+  // 2 つめの変化を選ぶと、その 1 手目（2 手目）が出て、手数は 5 手になる
+  await group.getByRole('button').nth(1).click();
+  await expect(page.locator('.review-pos')).toHaveText('2 / 5');
+  await expect(page.locator('g.stone')).toHaveCount(2);
+  await page.getByRole('button', { name: 'さいごへ' }).click();
+  await expect(page.locator('g.stone')).toHaveCount(5);
+
+  // 1 手目にもどって本筋を選びなおす
+  await page.getByRole('button', { name: 'さいしょへ' }).click();
+  await page.getByRole('button', { name: 'ひとつ すすむ' }).click();
+  await expect(group.getByRole('button').nth(1)).toHaveAttribute('aria-pressed', 'true'); // 前の選択をおぼえている
+  await group.getByRole('button').first().click();
+  await expect(page.locator('.review-pos')).toHaveText('2 / 3');
+  if (!isMobile) {
+    await page.keyboard.press('ArrowLeft'); // 1 手目
+    await page.keyboard.press('ArrowDown'); // 次の候補へ（位置は 1 手目のまま）
+    await expect(page.locator('.review-pos')).toHaveText('1 / 5');
+    await expect(group.getByRole('button').nth(1)).toHaveAttribute('aria-pressed', 'true');
+  }
+});
+

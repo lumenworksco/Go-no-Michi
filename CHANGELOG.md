@@ -4,7 +4,8 @@
 
 ### Open an SGF, more saved games, a resigning computer
 - 「きふを ひらく」: open an SGF file or pasted text and step through it (`CA[...]` legacy encodings supported;
-  first variation; 9/13/19 only).
+  9/13/19 only).
+- The SGF review screen follows variations (pick a branch where the game splits; ↑/↓ cycles) and shows comments.
 - Up to 5 paused games are kept; the old single save is migrated automatically.
 - The computer (初級/中級) resigns when it is clearly lost: win rate below 4% on three of its turns in a row, after
   half the board is played.

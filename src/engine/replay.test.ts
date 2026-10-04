@@ -49,4 +49,28 @@ describe('棋譜の再生', () => {
     expect(snaps[2].state.board[10]).toBe(WHITE); // 取り返した
     expect(snaps[2].state.board[11]).toBe(EMPTY); // (2,1) の黒が取られた
   });
+
+  it('変化の分かれ目は choices で選べる。選ばなければ本筋', () => {
+    const r = parseSgf('(;SZ[9];B[aa](;W[bb];B[cc])(;W[dd];B[ee]))');
+    if (!r.ok) throw new Error(r.error);
+    const main = buildReplay(r.game);
+    expect(main.snaps.map((s) => s.move)).toEqual([-2, 0, 10, 20]);
+    expect(main.line).toHaveLength(4);
+    expect(main.line[1].children).toHaveLength(2); // 1 手目のあとで枝わかれしている
+    // 節 1（B[aa] のあと）で 2 つめの候補を選ぶ
+    const alt = buildReplay(r.game, { 1: 1 });
+    expect(alt.snaps.map((s) => s.move)).toEqual([-2, 0, 30, 40]);
+    // 範囲外の選択は本筋にもどる
+    expect(buildReplay(r.game, { 1: 9 }).snaps.map((s) => s.move)).toEqual([-2, 0, 10, 20]);
+  });
+
+  it('変化の中で打てない手があれば、その変化の手前で止まる（本筋は影響しない）', () => {
+    const r = parseSgf('(;SZ[9];B[aa](;W[bb])(;W[aa];B[cc]))');
+    if (!r.ok) throw new Error(r.error);
+    expect(buildReplay(r.game).stoppedAt).toBeNull();
+    const alt = buildReplay(r.game, { 1: 1 });
+    expect(alt.stoppedAt).toBe(2);
+    expect(alt.snaps).toHaveLength(2);
+  });
 });
+

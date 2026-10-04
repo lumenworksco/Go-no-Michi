@@ -85,4 +85,37 @@ describe('SGF の読みこみ', () => {
     // CA がなければ UTF-8 のまま
     expect(ok(await decodeSgf(new TextEncoder().encode('(;SZ[9]PB[あ];B[aa])').buffer as ArrayBuffer)).blackName).toBe('あ');
   });
+
+  it('変化を木として読む。本筋（moves）はいつも先頭の変化', () => {
+    const g = ok('(;SZ[9];B[aa](;W[bb];B[cc])(;W[dd]C[変化2];B[ee])(;W[ff]))');
+    expect(g.moves.map((m) => m.point)).toEqual([0, 10, 20]);
+    const b1 = g.tree.children[0]; // B[aa]
+    expect(b1.move?.point).toBe(0);
+    expect(b1.children.map((n) => n.move?.point)).toEqual([10, 30, 50]); // W[bb] W[dd] W[ff]
+    expect(b1.children[1].comment).toBe('変化2');
+    expect(b1.children[0].children[0].move?.point).toBe(20);
+    expect(b1.children[2].children).toEqual([]);
+  });
+
+  it('コメント: 根・着手の節・着手のない節（直前に足される）', () => {
+    const g = ok('(;SZ[9]C[はじめに];B[ee]C[1手目];C[つづき];W[cc])');
+    expect(g.tree.comment).toBe('はじめに');
+    const b = g.tree.children[0];
+    expect(b.comment).toBe('1手目\nつづき');
+    expect(b.children[0].comment).toBeUndefined();
+  });
+
+  it('1 つの節に B と W があるときは、B → W の 2 手にする', () => {
+    const g = ok('(;SZ[9];B[aa]W[bb])');
+    expect(g.moves.map((m) => m.color)).toEqual([BLACK, WHITE]);
+  });
+
+  it('変化の中の座標がおかしくても format エラー', () => {
+    expect(parseSgf('(;SZ[9];B[aa](;W[bb])(;W[zz]))')).toEqual({ ok: false, error: 'format' });
+  });
+
+  it('変化のあとに節がつづく形は format エラー', () => {
+    expect(parseSgf('(;SZ[9];B[aa](;W[bb]);W[cc])')).toEqual({ ok: false, error: 'format' });
+  });
 });
+

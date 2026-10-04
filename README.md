@@ -39,7 +39,8 @@ early Japanese learners. Dark, minimal design.
 - Games where you used 「まった」 (undo) or 「ヒント」 are marked as assisted and are not added to your record.
 - **Up to 5 paused games** are kept (newest first on the home screen, each can be resumed or discarded).
 - **Open an SGF** (file or pasted text; 9×9, 13×13, 19×19; legacy encodings such as Shift_JIS work) and step
-  through it move by move — 「きふを ひらく」 on the home screen.
+  through it move by move, including variations (pick a branch where the game splits) and comments —
+  「きふを ひらく」 on the home screen.
 - The computer **resigns** (初級/中級) when its estimated win rate stays below 4% for three of its turns, after half
   the board is played.
 - On 13×13 and 19×19, touch input is **tap to preview, tap again to place**, so a fingertip
@@ -111,7 +112,7 @@ more weakly, and more slowly, on 19×19, and expect its strength to vary with ho
   points are banned). Its strength is time-capped, so it varies with device speed.
 - Dead stones are suggested by playouts and may be wrong; correct them by tapping before scoring.
   Seki is scored correctly only if you mark nothing dead in it.
-- SGF import reads the first game's main line only (no variations, comments or markup), and only 9/13/19 boards.
+- SGF import reads the first game in a file, only 9/13/19 boards, and ignores board markup (labels, triangles …).
 - GitHub Pages cannot set HTTP headers, so the Content-Security-Policy is a `<meta>` tag (no `frame-ancestors`) and
   cache lifetimes are GitHub's defaults (10 minutes).
 - Online/networked play is intentionally out of scope.
