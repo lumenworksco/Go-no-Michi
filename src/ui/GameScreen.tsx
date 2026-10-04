@@ -3,12 +3,13 @@ import { BLACK, WHITE, EMPTY, opp, neighbors, libertyCount, type Color } from '.
 import { newGame, playMove, passMove, isOver, scoreGame, chainOf, formatMokusu, koBannedMoves, type GameState } from '../engine/game';
 import { toSgf } from '../engine/sgf';
 import { requestMove, requestHint, requestDead, cancelAi, cancelHint } from '../ai/client';
+import { RESIGN_STREAK, shouldResign } from '../ai/resign';
 import { ja } from '../ja';
 import { playStone, playCapture, playChime, vibrate } from '../audio';
 import { moveMark } from '../notation';
-import { addRecord, persistProgress, type SavedGame } from '../save';
+import { addRecord, newSaveId, persistProgress, type SavedGame } from '../save';
 import { Board, type FadingStone } from './Board';
-import { BackButton, Dots, Sheet, StoneIcon, TopActions, TopBar, useToast } from './common';
+import { Arrow, BackButton, Dots, Sheet, StoneIcon, TopActions, TopBar, useToast } from './common';
 import type { GameSettings } from '../settings';
 
 interface Snap {
@@ -39,12 +40,6 @@ function replay(initial: GameState, moves: number[]): Snap[] {
   }
   return hist;
 }
-
-const Arrow = ({ d }: { d: string }) => (
-  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d={d} />
-  </svg>
-);
 
 export function GameScreen({
   settings,
@@ -84,10 +79,14 @@ export function GameScreen({
   const [hinting, setHinting] = useState(false);
   // まった・ヒントを使った対局は、せいせきに入れない（保存して、つづきから再開しても引きつぐ）
   const [assisted, setAssisted] = useState(resume?.assisted ?? false);
+  // この対局の保存の名前。つづきから再開したときは、前の保存を引きつぐ
+  const [saveId] = useState(() => resume?.id ?? newSaveId());
   const token = useRef(0);
   const hintToken = useRef(0);
   const recorded = useRef(false);
   const previewHinted = useRef(false);
+  // コンピュータの直近の勝率の見積もり（ごく低い状態がつづいたら投了する）
+  const recentWinrates = useRef<number[]>([]);
   const toast = useToast();
 
   const over = isOver(cur);
@@ -98,8 +97,8 @@ export function GameScreen({
 
   // ---- 自動保存（中断して、ホームの「続きから」で再開できる） ----------------
   useEffect(() => {
-    persistProgress({ settings, human, moves: hist.slice(1).map((h) => h.move), ...(assisted ? { assisted } : {}) }, phase === 'done');
-  }, [hist, phase, settings, human, assisted]);
+    persistProgress({ id: saveId, updatedAt: 0, settings, human, moves: hist.slice(1).map((h) => h.move), ...(assisted ? { assisted } : {}) }, phase === 'done');
+  }, [hist, phase, settings, human, assisted, saveId]);
 
   // ---- 着手 ----------------------------------------------------------
   const doPlay = (idx: number) => {
@@ -175,6 +174,13 @@ export function GameScreen({
       if (my !== token.current) return;
       settled = true;
       setThinking(false);
+      recentWinrates.current = [...recentWinrates.current, r.winrate].slice(-RESIGN_STREAK);
+      if (shouldResign(recentWinrates.current, { moveNo: cur.moveNo, size: cur.size, level: settings.level })) {
+        setResigned(opp(human)); // 投了したのはコンピュータ（あなたの勝ち）
+        setShowResult(true);
+        toast.show(ja.game.computerResigned, 2600);
+        return;
+      }
       if (r.move < 0) {
         doPass();
         toast.show(ja.game.passed(ja.game.computer));
@@ -239,6 +245,7 @@ export function GameScreen({
   const undo = () => {
     if (!canUndo) return;
     if (isAi) setAssisted(true);
+    recentWinrates.current = [];
     token.current++;
     cancelAi();
     setThinking(false);

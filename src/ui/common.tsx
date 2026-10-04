@@ -188,3 +188,10 @@ export function Seg<T extends string | number>({
     </div>
   );
 }
+
+/** 棋譜を進める・戻すボタンの矢印。 */
+export const Arrow = ({ d }: { d: string }) => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d={d} />
+  </svg>
+);

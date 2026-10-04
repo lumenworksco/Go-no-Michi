@@ -12,6 +12,7 @@ export const ja = {
     tsumegoSub: (done: number, total: number) => `${done} / ${total} もん せいかい`,
     resume: 'つづきから',
     resumeSub: (size: number, level: string, moveNo: number) => `${size}×${size}・${level}・${moveNo}てめ`,
+    otherSaves: 'ほかの ほぞん',
     discard: 'すてる',
     discardAsk: 'ほぞんした たいきょくを すてますか？',
     discardBody: 'すてると、もとには もどせません。',
@@ -20,6 +21,7 @@ export const ja = {
     update: 'こうしん',
     rules: 'あそびかた',
     settings: 'せってい',
+    openSgf: 'きふを ひらく',
     record: (w: number, l: number, d: number) => `せいせき ${w}かち ${l}まけ${d ? ` ${d}ひきわけ` : ''}`,
   },
 
@@ -50,9 +52,9 @@ export const ja = {
     komi: 'コミ',
     komiValue: (k: number) => (k === 0 ? 'なし' : k % 1 ? `${Math.floor(k)}もくはん` : `${k}もく`),
     start: 'はじめる',
-    discardAsk: 'ちゅうだんした たいきょくを すてますか？',
-    discardBody: 'あたらしい たいきょくを はじめると、ちゅうだんしていた たいきょくは きえます。',
-    discardYes: 'すてて はじめる',
+    discardAsk: 'ほぞんが いっぱいです',
+    discardBody: 'あたらしい たいきょくを はじめると、いちばん ふるい ほぞんが きえます。',
+    discardYes: 'はじめる',
   },
 
   game: {
@@ -71,6 +73,7 @@ export const ja = {
     undo: 'まった',
     resign: 'とうりょう',
     thinking: 'かんがえちゅう',
+    computerResigned: 'コンピュータが とうりょうしました',
     passed: (who: string) => `${who}が パスしました`,
     ko: 'コウです。ほかの ところに うってください',
     suicide: 'そこには うてません',
@@ -191,6 +194,24 @@ export const ja = {
     tap: 'くろの いってを うってください',
     alreadyThere: 'そこには もう いしが あります',
     progress: (done: number, total: number) => `${done} / ${total} もん せいかい`,
+  },
+
+  sgf: {
+    title: 'きふを ひらく',
+    intro: 'いごの きふ（SGF ファイル）を ひらいて、いってずつ みる ことが できます。',
+    choose: 'ファイルを えらぶ',
+    or: 'または、きふの ぶんしょうを はりつけて ください',
+    placeholder: '(;GM[1]SZ[9];B[ee];W[cc] …',
+    pasteClip: 'クリップボードから はりつける',
+    open: 'ひらく',
+    errEmpty: 'きふが はいっていません',
+    errFormat: 'この きふは よめませんでした',
+    errSize: 'この ばんの おおきさには たいおうしていません（9・13・19 だけ）',
+    errBig: 'ファイルが おおきすぎます',
+    errClip: 'クリップボードから よみとれませんでした',
+    reviewTitle: 'きふを みる',
+    stopped: (n: number) => `${n}てめの てが おけないため、その まえまで ひょうじします`,
+    noMoves: 'うった てが ありません',
   },
 
   settings: {

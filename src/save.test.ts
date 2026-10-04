@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { addRecord, loadRecord, loadSavedGame, loadSolved, parseSavedGame, persistProgress, storeSavedGame, storeSolved, type SavedGame } from './save';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { addRecord, deleteSavedGame, loadRecord, loadSavedGames, loadSolved, MAX_SAVES, parseSavedGame, persistProgress, storeSavedGame, storeSolved, type SavedGame } from './save';
 import { DEFAULT_SETTINGS, loadSettings, parseSettings, SETTINGS_KEY } from './settings';
 import { clearAllData, load } from './store';
 import { installFakeStorage } from './testStorage';
@@ -9,7 +9,7 @@ beforeEach(() => {
   data = installFakeStorage();
 });
 
-const game = (moves: number[]): SavedGame => ({ settings: { ...DEFAULT_SETTINGS }, human: 1, moves });
+const game = (moves: number[], id = 'a'): SavedGame => ({ id, updatedAt: 0, settings: { ...DEFAULT_SETTINGS }, human: 1, moves });
 
 describe('設定の検査', () => {
   it('正しい設定は通り、おかしな値は捨てる', () => {
@@ -43,7 +43,9 @@ describe('設定の検査', () => {
 describe('保存された対局', () => {
   it('保存して読み戻せる', () => {
     storeSavedGame(game([40, 41, -1]));
-    expect(loadSavedGame()).toEqual(game([40, 41, -1]));
+    const [g] = loadSavedGames();
+    expect(g).toMatchObject({ id: 'a', human: 1, moves: [40, 41, -1] });
+    expect(g.updatedAt).toBeGreaterThan(0);
   });
 
   it('盤の外の手・形のちがうデータは捨てる', () => {
@@ -54,8 +56,10 @@ describe('保存された対局', () => {
     expect(parseSavedGame({ ...game([]), settings: { size: 9 } })).toBeNull();
     expect(parseSavedGame({ settings: DEFAULT_SETTINGS, human: 1, moves: 'x' })).toBeNull();
     expect(parseSavedGame('x')).toBeNull();
-    data.set('gonomichi:save', '{"settings":1}');
-    expect(loadSavedGame()).toBeNull();
+    data.set('gonomichi:saves', '[{"settings":1}, 7, null]');
+    expect(loadSavedGames()).toEqual([]);
+    data.set('gonomichi:saves', '{"not":"a list"}');
+    expect(loadSavedGames()).toEqual([]);
   });
 
   it('assisted（まった・ヒントを使った）は真偽値だけ受けつけて、保存・復元できる', () => {
@@ -63,18 +67,58 @@ describe('保存された対局', () => {
     expect(parseSavedGame({ ...game([40]), assisted: false })?.assisted).toBeUndefined();
     expect(parseSavedGame({ ...game([40]), assisted: 'yes' })).toBeNull();
     storeSavedGame({ ...game([40]), assisted: true });
-    expect(loadSavedGame()?.assisted).toBe(true);
+    expect(loadSavedGames()[0].assisted).toBe(true);
   });
 
-  it('終局、または一手もない（待ったで最初まで戻した）ときは保存を消す', () => {
-    persistProgress(game([40]), false);
-    expect(loadSavedGame()).not.toBeNull();
-    persistProgress(game([]), false); // 待ったで 0 手に戻した
-    expect(loadSavedGame()).toBeNull();
-    persistProgress(game([40, 41]), false);
-    expect(loadSavedGame()).not.toBeNull();
-    persistProgress(game([40, 41]), true); // 終局
-    expect(loadSavedGame()).toBeNull();
+  it('複数の対局を新しい順に残し、同じ id は上書きする', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    storeSavedGame(game([40], 'a'));
+    vi.setSystemTime(2000);
+    storeSavedGame(game([40], 'b'));
+    expect(loadSavedGames().map((g) => g.id)).toEqual(['b', 'a']);
+    vi.setSystemTime(3000);
+    storeSavedGame(game([40, 41], 'a')); // a を進めた → 先頭にくる・数は増えない
+    expect(loadSavedGames().map((g) => [g.id, g.moves.length])).toEqual([['a', 2], ['b', 1]]);
+    deleteSavedGame('b');
+    expect(loadSavedGames().map((g) => g.id)).toEqual(['a']);
+    vi.useRealTimers();
+  });
+
+  it(`${MAX_SAVES} 件をこえたら、いちばん古いものから消える`, () => {
+    vi.useFakeTimers();
+    for (let i = 0; i < MAX_SAVES + 2; i++) {
+      vi.setSystemTime(1000 * (i + 1));
+      storeSavedGame(game([40], `g${i}`));
+    }
+    const ids = loadSavedGames().map((g) => g.id);
+    expect(ids).toHaveLength(MAX_SAVES);
+    expect(ids[0]).toBe(`g${MAX_SAVES + 1}`);
+    expect(ids).not.toContain('g0');
+    vi.useRealTimers();
+  });
+
+  it('古い版の「保存が 1 つ」を取りこんで、古いキーを消す', () => {
+    data.set('gonomichi:save', JSON.stringify({ settings: DEFAULT_SETTINGS, human: 1, moves: [40, 41] }));
+    const list = loadSavedGames();
+    expect(list).toHaveLength(1);
+    expect(list[0].moves).toEqual([40, 41]);
+    expect(data.has('gonomichi:save')).toBe(false);
+    expect(loadSavedGames()[0].id).toBe(list[0].id); // 取りこんだあとは id が変わらない
+    data.set('gonomichi:save', 'garbage');
+    expect(loadSavedGames()).toHaveLength(1);
+    expect(data.has('gonomichi:save')).toBe(false);
+  });
+
+  it('終局、または一手もない（待ったで最初まで戻した）ときは、その対局の保存だけを消す', () => {
+    storeSavedGame(game([40], 'keep'));
+    persistProgress(game([40], 'x'), false);
+    expect(loadSavedGames().map((g) => g.id).sort()).toEqual(['keep', 'x']);
+    persistProgress(game([], 'x'), false); // 待ったで 0 手に戻した
+    expect(loadSavedGames().map((g) => g.id)).toEqual(['keep']);
+    persistProgress(game([40, 41], 'x'), false);
+    persistProgress(game([40, 41], 'x'), true); // 終局
+    expect(loadSavedGames().map((g) => g.id)).toEqual(['keep']);
   });
 });
 

@@ -37,6 +37,11 @@ early Japanese learners. Dark, minimal design.
 - **Positional superko**: a move that would recreate an earlier whole-board position is refused, so long ko cycles
   cannot go on forever.
 - Games where you used 「まった」 (undo) or 「ヒント」 are marked as assisted and are not added to your record.
+- **Up to 5 paused games** are kept (newest first on the home screen, each can be resumed or discarded).
+- **Open an SGF** (file or pasted text; 9×9, 13×13, 19×19; legacy encodings such as Shift_JIS work) and step
+  through it move by move — 「きふを ひらく」 on the home screen.
+- The computer **resigns** (初級/中級) when its estimated win rate stays below 4% for three of its turns, after half
+  the board is played.
 - On 13×13 and 19×19, touch input is **tap to preview, tap again to place**, so a fingertip
   can't drop a stone on the wrong point. (Mouse: one click, as usual. 9×9: one tap.)
 - SGF export includes the date; the downloaded file has an ASCII name (`gonomichi-YYYY-MM-DD.sgf`).
@@ -95,24 +100,24 @@ site is deployed to GitHub Pages only when all of them pass on `main`.
 
 The three levels (入門/初級/中級) are the same search given a larger time/playout budget — not
 marketing names. `npm run arena` plays them against each other. In a small check on 9×9 (6 games per
-pairing, colours alternating) the stronger level won every game: 中級 beat 初級 6/6, 初級 beat 入門 6/6 and 中級 beat 入門 6/6. That is a small sample, and 13×13 / 19×19 have not been
-measured systematically. It is a lightweight search, not a strong engine like KataGo: expect it to play
+pairing, colours alternating) the stronger level won every game: 中級 beat 初級 6/6, 初級 beat 入門 6/6 and 中級 beat 入門 6/6. On 13×13 (4 and 2 games) 初級 beat 入門 3/4 and 中級 beat 初級 2/2 — less decisive than on 9×9. 19×19 play
+quality has not been measured. These are small samples. It is a lightweight search, not a strong engine like KataGo: expect it to play
 more weakly, and more slowly, on 19×19, and expect its strength to vary with how fast your device is
 (each move is time-capped).
 
 ## Known limitations
 
 - The AI itself only knows simple ko inside its search (the game engine refuses repetitions and tells the AI which
-  points are banned), and it never resigns. Its strength is time-capped, so it varies with device speed.
+  points are banned). Its strength is time-capped, so it varies with device speed.
 - Dead stones are suggested by playouts and may be wrong; correct them by tapping before scoring.
   Seki is scored correctly only if you mark nothing dead in it.
-- The Japanese copy (`src/ja.ts`) has not been reviewed by a native speaker.
-- No SGF import, and only one saved game slot.
+- SGF import reads the first game's main line only (no variations, comments or markup), and only 9/13/19 boards.
 - GitHub Pages cannot set HTTP headers, so the Content-Security-Policy is a `<meta>` tag (no `frame-ancestors`) and
   cache lifetimes are GitHub's defaults (10 minutes).
 - Online/networked play is intentionally out of scope.
-- Verified in headless Chromium and WebKit only — not yet on a real iOS or Android device, and
-  offline reload is only automated on Chromium.
+- Automated tests run in headless Chromium and WebKit. Real iOS and Android devices (including offline use) have
+  been checked by hand; offline *reload* is automated on Chromium only (Playwright's WebKit can't do it), so on
+  WebKit the tests check the service-worker cache contents instead.
 
 ## Contributing / security
 

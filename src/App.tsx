@@ -2,7 +2,9 @@ import { lazy, startTransition, Suspense, useEffect, useState } from 'react';
 import { Home } from './ui/Home';
 import { Rules } from './ui/Rules';
 import { Settings } from './ui/Settings';
-import { clearSavedGame, loadSavedGame, loadSolved, storeSolved, type SavedGame } from './save';
+import { OpenSgf } from './ui/OpenSgf';
+import { Review } from './ui/Review';
+import { deleteSavedGame, loadSavedGames, loadSolved, MAX_SAVES, storeSolved, type SavedGame } from './save';
 import { Setup } from './ui/Setup';
 import { GameScreen } from './ui/GameScreen';
 import { PUZZLES } from './tsumego/problems';
@@ -16,7 +18,7 @@ const TsumegoPlay = lazy(() => import('./ui/Tsumego').then((m) => ({ default: m.
 
 export function App() {
   const [route, setRoute] = useState<Route>(HOME);
-  const [saved, setSaved] = useState<SavedGame | null>(() => loadSavedGame());
+  const [saved, setSaved] = useState<SavedGame[]>(loadSavedGames);
   const [solved, setSolved] = useState<number[]>(loadSolved);
   const updateAvailable = useUpdateAvailable();
 
@@ -32,7 +34,7 @@ export function App() {
 
   // ホームに戻るたびに、保存されている対局を読み直す（戻るボタン経由でも古い情報を出さない）
   useEffect(() => {
-    if (route.name === 'home') setSaved(loadSavedGame());
+    if (route.name === 'home') setSaved(loadSavedGames());
   }, [route.name]);
 
   // 端末／ブラウザの「戻る」を唯一の遷移元にする。履歴に積んだ内容をそのまま読み戻す。
@@ -99,10 +101,11 @@ export function App() {
             onTsumego={() => go({ name: 'tsumegoList' })}
             onRules={() => go({ name: 'rules' })}
             onSettings={() => go({ name: 'settings' })}
-            onResume={() => saved && go({ name: 'game', settings: saved.settings, run: 0, resume: saved })}
-            onDiscard={() => {
-              clearSavedGame();
-              setSaved(null);
+            onOpenSgf={() => go({ name: 'openSgf' })}
+            onResume={(g) => go({ name: 'game', settings: g.settings, run: 0, resume: g })}
+            onDiscard={(id) => {
+              deleteSavedGame(id);
+              setSaved(loadSavedGames());
             }}
             saved={saved}
             solved={solved.length}
@@ -112,16 +115,20 @@ export function App() {
         );
       case 'rules':
         return <Rules onBack={back} />;
+      case 'openSgf':
+        // ファイルをえらぶ画面は使い捨てなので、棋譜の画面へは置きかえて進む（戻るで、ここを飛ばしてホームへ）
+        return <OpenSgf onBack={back} onOpen={(game) => replace({ name: 'review', game })} />;
+      case 'review':
+        return <Review game={route.game} onBack={back} />;
       case 'settings':
         return <Settings onBack={back} onResetSolved={() => setSolved([])} />;
       case 'setup':
         return (
           <Setup
-            hasSaved={!!saved}
+            savesFull={saved.length >= MAX_SAVES}
             onBack={back}
             onStart={(settings) => {
-              clearSavedGame(); // 新しい対局を始めたら、中断していた対局は破棄
-              setSaved(null);
+              // 中断していた対局は、そのまま残す（いっぱいのときは、保存するときにいちばん古いものが消える）
               // 対局設定の画面は使い捨てなので、戻る履歴には積まず置きかえる。
               // こうすると対局を終えたときの「戻る」は、設定画面を飛ばして直接ホームに戻る。
               replace({ name: 'game', settings, run: 0, resume: null });

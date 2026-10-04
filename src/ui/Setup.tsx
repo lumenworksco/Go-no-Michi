@@ -9,12 +9,12 @@ import { BackButton, Seg, Sheet, TopBar } from './common';
 export function Setup({
   onStart,
   onBack,
-  hasSaved = false,
+  savesFull = false,
 }: {
   onStart: (s: GameSettings) => void;
   onBack: () => void;
-  /** 中断した対局が残っているか。あれば、はじめる前に破棄してよいか確認する。 */
-  hasSaved?: boolean;
+  /** 中断した対局の保存がいっぱいか。いっぱいなら、はじめる前に、いちばん古い保存が消えることを確認する。 */
+  savesFull?: boolean;
 }) {
   const [s, setS] = useState<GameSettings>(loadSettings);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -104,7 +104,7 @@ export function Setup({
         <button
           className="big-btn primary slim"
           onClick={() => {
-            if (hasSaved) setConfirmDiscard(true);
+            if (savesFull) setConfirmDiscard(true);
             else doStart();
           }}
         >

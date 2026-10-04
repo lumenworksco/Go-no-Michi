@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Open an SGF, more saved games, a resigning computer
+- 「きふを ひらく」: open an SGF file or pasted text and step through it (`CA[...]` legacy encodings supported;
+  first variation; 9/13/19 only).
+- Up to 5 paused games are kept; the old single save is migrated automatically.
+- The computer (初級/中級) resigns when it is clearly lost: win rate below 4% on three of its turns in a row, after
+  half the board is played.
+- 13×13 AI strength measured (README); `scripts/resign-check.ts` added.
+- E2E: SGF round trip, multiple saves, and a WebKit-capable check that the service worker precaches everything
+  the game needs.
+
 ### Accessibility
 - The board can be played with the keyboard (Tab, arrow keys, Enter/Space) and is announced to screen readers
   (cursor position, stone state, the computer thinking, the result).

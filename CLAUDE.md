@@ -1,6 +1,6 @@
 # 碁の道 — Go (囲碁) PWA, fully in Japanese
 
-Vite + React + TypeScript. Dark, minimal UI modelled on the Offsuite poker app. The whole UI is
+Vite + React + TypeScript. Dark, minimal UI. The whole UI is
 written in hiragana + katakana only (no kanji) — see `src/ja.ts` below. `README.md` has the
 user-facing feature list and a screenshot; this file is operational/architecture notes for
 picking the project back up.
@@ -15,22 +15,23 @@ picking the project back up.
 Feature-complete for a v1 and hardened: rules engine, AI, 16 tsumego puzzles (all proven
 solvable by exhaustive search, not just authored), full Japanese-beginner UI, responsive
 phone↔desktop layout, installable offline PWA, SGF export, game review, error boundary, and an
-e2e suite covering phone/desktop × Chromium/WebKit. 160 unit tests and 26 e2e tests (×4 browser
-projects = 104 runs; 11 are skipped by design: offline on WebKit, touch-only on desktop, keyboard-only on mobile, Chromium-only Tab navigation), all green locally and in CI.
+e2e suite covering phone/desktop × Chromium/WebKit. 182 unit tests and 35 e2e tests (×4 browser
+projects = 140 runs; 11 are skipped by design: offline-reload on WebKit, touch-only on desktop, keyboard-only on mobile, Chromium-only Tab navigation), all green locally and in CI.
 
 **Open items / known gaps** (not blocking, just not done):
-- No testing on a real iOS/Android device — only headless Chromium/WebKit via Playwright.
-- The offline-reload e2e test is skipped on WebKit: Playwright's WebKit driver throws an
-  internal error on `offline + reload` regardless of the app (confirmed — identical flow passes
-  on Chromium). iOS Safari offline behaviour itself is unverified.
+- Real iOS and Android devices (including offline use) and the Japanese copy have been checked by the owner
+  (October 2026). Automation is headless Chromium/WebKit via Playwright only.
+- The offline-reload e2e test is skipped on WebKit: Playwright's WebKit driver throws an internal error on
+  `offline + reload` regardless of the app. `e2e/offline.spec.ts` instead asserts, on every browser, that the
+  service worker has precached everything the game needs.
 - AI strength (`npm run arena`): on 9×9, 6 games per pairing with alternating colours, 中級 beat 初級 6/6,
   初級 beat 入門 6/6 and 中級 beat 入門 6/6 (small sample). 13×13 and play quality on 19×19 are unmeasured.
-- Single save slot: starting a new game from Setup asks for confirmation before discarding a
-  paused one, but there's no way to keep more than one paused game.
+- Up to 5 paused games are kept (`MAX_SAVES`, newest first; starting a game when full drops the oldest, after a confirmation).
 - Positional superko is enforced by the *game engine* (`GameState.seen`, opt-in via `newGame(…, superko=true)` — puzzles
   and the solver use simple ko only); the AI's search only knows simple ko, so `GameScreen` passes `banned` points from
   `koBannedMoves()`. Online/networked play is intentionally out of scope.
-- Japanese copy has not been reviewed by a native speaker. No SGF import; one save slot; the AI never resigns.
+- The AI resigns (`src/ai/resign.ts`) only at 初級/中級, after half the board is played, when its estimated win rate
+  is below 4% three of its turns in a row. `scripts/resign-check.ts` shows that behaviour in a real game.
 - GitHub Pages can't set headers: CSP is a build-only `<meta>` (see `cspPlugin` in `vite.config.ts`), cache is GitHub's 10 min.
 - License is MIT (`LICENSE`), chosen as a reasonable default for a project like this — change it
   if you want something else.
@@ -66,9 +67,10 @@ To check a change against the live site instead of a local build:
 - `index.html` metadata: URL comes from `.env` (`VITE_SITE_URL`); the SEO block between `kanji-ok` comments may contain kanji (invisible metadata) and is exempt from `ja.test.ts`.
 - `scripts/gen-puzzles.ts` — random search + solver proof for new tsumego (copy output into `problems.ts`, then `npm test`).
 - `src/ja.ts` — all UI strings. The whole UI is **hiragana + katakana only (no kanji)**, with spaces between words, for beginners. `src/ja.test.ts` fails if a kanji appears in the strings or UI code (scans `src/ui/*`, `src/App.tsx`, `src/notation.ts`, `src/audio.ts`, `src/rulesDiagrams.ts`, `index.html`, `vite.config.ts` — add a new file there if it can contain user-visible text). Board axes use digits; moves read like `3の4`. The app is called ごのみち.
+- SGF: `engine/sgf.ts` writes, `engine/sgfParse.ts` reads (first game, first variation, `AB`/`AW` incl. `aa:cc` ranges, escapes, `CA[...]` legacy encodings via `decodeSgf`; 9/13/19 only), `engine/replay.ts` turns a parsed game into positions (colours as the file says, simple ko ignored), `ui/OpenSgf.tsx` (file picker or paste) → `ui/Review.tsx` (route `review`, never restored from history). Entry: Home "きふを ひらく".
 - `src/store.ts` / `src/settings.ts` / `src/save.ts` — everything in localStorage goes through these, and **every read is validated**
   (`load()` takes a type guard; `parseSettings`, `parseSavedGame`, `loadSolved`, `loadRecord`), so corrupt or old data falls back to
-  defaults instead of crashing. `persistProgress()` is the autosave rule (cleared when the game is finished *or* undone back to move 0).
+  defaults instead of crashing. Saved games are a list under `gonomichi:saves` (`SavedGame` has `id` + `updatedAt`; the old single `gonomichi:save` key is migrated on first load). `persistProgress()` is the autosave rule (that game's slot is deleted when it is finished *or* undone back to move 0).
   The error screen's button calls `clearAllData()` (all `gonomichi:*` keys).
 - `src/route.ts` — the `Route` union and `routeFromHistory()`. **A `game` route is never restored from browser history** (Back/Forward),
   otherwise Forward could resurrect an old game snapshot and overwrite a newer save. Games are entered only from Home "つづきから" and Setup "はじめる".

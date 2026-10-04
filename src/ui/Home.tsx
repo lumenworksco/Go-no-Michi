@@ -9,6 +9,7 @@ export function Home({
   onTsumego,
   onRules,
   onSettings,
+  onOpenSgf,
   onResume,
   onDiscard,
   saved,
@@ -20,17 +21,22 @@ export function Home({
   onTsumego: () => void;
   onRules: () => void;
   onSettings: () => void;
-  onResume: () => void;
-  onDiscard: () => void;
-  saved: SavedGame | null;
+  onOpenSgf: () => void;
+  onResume: (g: SavedGame) => void;
+  onDiscard: (id: string) => void;
+  /** 中断した対局（新しい順）。 */
+  saved: SavedGame[];
   solved: number;
   /** あたらしいバージョンが待機している */
   updateAvailable?: boolean;
   onUpdate?: () => void;
 }) {
   const [rec] = useState(loadRecord);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
   const games = rec.win + rec.lose + rec.draw;
+  const [latest, ...others] = saved;
+  const describe = (g: SavedGame) =>
+    ja.home.resumeSub(g.settings.size, g.settings.mode === 'ai' ? ja.setup.levelName[g.settings.level] : ja.setup.local, g.moves.length);
   return (
     <div className="screen home">
       <TopBar
@@ -71,20 +77,33 @@ export function Home({
             </button>
           </div>
         )}
-        {saved && (
+        {latest && (
           <div className="resume-card">
-            <button className="big-btn resume" onClick={onResume}>
+            <button className="big-btn resume" onClick={() => onResume(latest)}>
               <span className="bb-title">{ja.home.resume}</span>
-              <span className="bb-sub">
-                {ja.home.resumeSub(saved.settings.size, saved.settings.mode === 'ai' ? ja.setup.levelName[saved.settings.level] : ja.setup.local, saved.moves.length)}
-              </span>
+              <span className="bb-sub">{describe(latest)}</span>
             </button>
-            <button className="text-btn discard" onClick={() => setConfirmDiscard(true)}>
+            <button className="text-btn discard" onClick={() => setConfirmDiscard(latest.id)}>
               {ja.home.discard}
             </button>
           </div>
         )}
-        <button className={`big-btn${saved ? '' : ' primary'}`} onClick={onPlay}>
+        {others.length > 0 && (
+          <div className="saves-more">
+            <small>{ja.home.otherSaves}</small>
+            {others.map((g) => (
+              <div className="resume-row" key={g.id}>
+                <button className="resume-open" onClick={() => onResume(g)}>
+                  {describe(g)}
+                </button>
+                <button className="text-btn" onClick={() => setConfirmDiscard(g.id)}>
+                  {ja.home.discard}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button className={`big-btn${latest ? '' : ' primary'}`} onClick={onPlay}>
           <span className="bb-title">{ja.home.play}</span>
           <span className="bb-sub">{ja.home.playSub}</span>
         </button>
@@ -92,24 +111,29 @@ export function Home({
           <span className="bb-title">{ja.home.tsumego}</span>
           <span className="bb-sub">{ja.home.tsumegoSub(solved, PUZZLES.length)}</span>
         </button>
-        <button className="text-btn settings-link" onClick={onSettings}>
-          {ja.home.settings}
-        </button>
+        <div className="home-links">
+          <button className="text-btn" onClick={onOpenSgf}>
+            {ja.home.openSgf}
+          </button>
+          <button className="text-btn" onClick={onSettings}>
+            {ja.home.settings}
+          </button>
+        </div>
       </div>
 
       {confirmDiscard && (
-        <Sheet onClose={() => setConfirmDiscard(false)}>
+        <Sheet onClose={() => setConfirmDiscard(null)}>
           <h2>{ja.home.discardAsk}</h2>
           <p>{ja.home.discardBody}</p>
           <div className="sheet-actions">
-            <button className="act" onClick={() => setConfirmDiscard(false)}>
+            <button className="act" onClick={() => setConfirmDiscard(null)}>
               {ja.game.cancel}
             </button>
             <button
               className="act danger solid"
               onClick={() => {
-                setConfirmDiscard(false);
-                onDiscard();
+                onDiscard(confirmDiscard);
+                setConfirmDiscard(null);
               }}
             >
               {ja.home.discardYes}
