@@ -112,7 +112,7 @@ export const ja = {
     atari: 'アタリ',
     assistedNote: 'まった・ヒントを つかったので、せいせきには いれません',
     passAgain: 'もういちど P を おすと パスします',
-    previewTap: 'もういちど タップすると、ここに おきます',
+    previewTap: 'もういちど タップで おく',
     moveLabel: (n: number, mark: string) => `${n}てめ ${mark}`,
     passLabel: 'パス',
     review: 'きふを みる',
